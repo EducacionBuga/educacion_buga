@@ -1,0 +1,108 @@
+{
+  "titulo": "Lista de Chequeo Contractual",
+  "etapas": [
+    {
+      "nombre": "Etapa de Planeación",
+      "documentos": [
+        {
+          "nombre": "Estudios Previos",
+          "descripcion": "Documento que contiene la necesidad y justificación de la contratación",
+          "respuestas": {
+            "si": 85,
+            "no": 10,
+            "noAplica": 5
+          },
+          "observaciones": [
+            "Se requiere mayor detalle en la justificación técnica",
+            "Falta incluir análisis de riesgos más detallado"
+          ]
+        },
+        {
+          "nombre": "Análisis del Sector",
+          "descripcion": "Estudio de mercado y análisis económico del sector",
+          "respuestas": {
+            "si": 70,
+            "no": 20,
+            "noAplica": 10
+          },
+          "observaciones": ["Actualizar precios de referencia", "Incluir más proveedores en el estudio de mercado"]
+        }
+      ]
+    },
+    {
+      "nombre": "Etapa Precontractual",
+      "documentos": [
+        {
+          "nombre": "Pliegos de Condiciones",
+          "descripcion": "Documento que establece las reglas del proceso de selección",
+          "respuestas": {
+            "si": 90,
+            "no": 5,
+            "noAplica": 5
+          },
+          "observaciones": ["Revisar criterios de evaluación", "Ajustar cronograma del proceso"]
+        },
+        {
+          "nombre": "Invitación Pública",
+          "descripcion": "Documento que invita a los interesados a participar",
+          "respuestas": {
+            "si": 95,
+            "no": 5,
+            "noAplica": 0
+          },
+          "observaciones": ["Ampliar plazo para presentar ofertas"]
+        }
+      ]
+    },
+    {
+      "nombre": "Etapa Contractual",
+      "documentos": [
+        {
+          "nombre": "Minuta del Contrato",
+          "descripcion": "Documento que contiene las cláusulas del contrato",
+          "respuestas": {
+            "si": 80,
+            "no": 15,
+            "noAplica": 5
+          },
+          "observaciones": ["Revisar cláusulas de garantías", "Ajustar obligaciones específicas del contratista"]
+        },
+        {
+          "nombre": "Acta de Inicio",
+          "descripcion": "Documento que formaliza el inicio de la ejecución",
+          "respuestas": {
+            "si": 100,
+            "no": 0,
+            "noAplica": 0
+          },
+          "observaciones": ["Todas las actas se han firmado correctamente"]
+        }
+      ]
+    },
+    {
+      "nombre": "Etapa Poscontractual",
+      "documentos": [
+        {
+          "nombre": "Acta de Liquidación",
+          "descripcion": "Documento que formaliza la terminación del contrato",
+          "respuestas": {
+            "si": 75,
+            "no": 20,
+            "noAplica": 5
+          },
+          "observaciones": ["Pendiente liquidación de algunos contratos", "Revisar saldos a favor de la entidad"]
+        },
+        {
+          "nombre": "Informe Final",
+          "descripcion": "Documento que resume la ejecución del contrato",
+          "respuestas": {
+            "si": 85,
+            "no": 10,
+            "noAplica": 5
+          },
+          "observaciones": ["Incluir evidencias fotográficas", "Detallar cumplimiento de indicadores"]
+        }
+      ]
+    }
+  ]
+}
