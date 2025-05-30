@@ -1,0 +1,95 @@
+{
+  "statsCards": {
+    "documentos": {
+      "total": 0,
+      "incremento": 0,
+      "tendencia": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    "planesAccion": {
+      "total": 0,
+      "incremento": 0,
+      "tendencia": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    "usuariosActivos": {
+      "total": 0,
+      "incremento": 0,
+      "tendencia": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    "tareasPendientes": {
+      "total": 0,
+      "decremento": 0,
+      "tendencia": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    }
+  },
+  "activityChart": {
+    "areas": ["Calidad Educativa", "Cobertura e Infraestructura", "Inspección y Vigilancia", "Talento Humano"],
+    "meses": ["Ene", "Feb", "Mar", "Abr", "May", "Jun"],
+    "datos": {
+      "Calidad Educativa": [0, 0, 0, 0, 0, 0],
+      "Cobertura e Infraestructura": [0, 0, 0, 0, 0, 0],
+      "Inspección y Vigilancia": [0, 0, 0, 0, 0, 0],
+      "Talento Humano": [0, 0, 0, 0, 0, 0]
+    },
+    "totales": {
+      "documentos": 0,
+      "planesAccion": 0,
+      "listasChequeo": 0
+    }
+  },
+  "listaChequeoAnalisis": {
+    "categorias": [],
+    "dependencias": [],
+    "respuestas": {
+      "Si": [],
+      "No": [],
+      "NoAplica": []
+    },
+    "observaciones": [],
+    "resumenPorcentajes": {
+      "total": {
+        "Si": 0,
+        "No": 0,
+        "NoAplica": 0
+      }
+    }
+  },
+  "reportsPreview": {
+    "cumplimiento": [],
+    "comparativo": [],
+    "areaColors": {
+      "Calidad Educativa": "#f97316",
+      "Cobertura e Infraestructura": "#22c55e",
+      "Inspección y Vigilancia": "#3b82f6",
+      "Talento Humano": "#a855f7"
+    }
+  },
+  "timelinePreview": {
+    "proyectos": []
+  },
+  "quickAccess": [
+    {
+      "id": "1",
+      "title": "Plan de Acción 2025",
+      "icon": "FileText",
+      "href": "/dashboard/planeacion/plan-accion"
+    },
+    {
+      "id": "2",
+      "title": "Matriz de Seguimiento",
+      "icon": "BarChart2",
+      "href": "/dashboard/planeacion/matriz-seguimiento"
+    },
+    {
+      "id": "3",
+      "title": "Documentos Contractuales",
+      "icon": "FileText",
+      "href": "/dashboard/calidad-educativa/proveedores"
+    },
+    {
+      "id": "4",
+      "title": "Informes de Ejecución",
+      "icon": "BarChart",
+      "href": "/dashboard/despacho/informes"
+    }
+  ]
+}

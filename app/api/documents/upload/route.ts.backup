@@ -1,0 +1,213 @@
+import { type NextRequest, NextResponse } from "next/server"
+import { createClient, createAdminClient } from "@/lib/supabase-client"
+import { uploadDocument } from "@/lib/r2-upload-service"
+import { SLUG_TO_AREA_IDS } from "@/utils/areas"
+import { v4 as uuidv4 } from "uuid"
+
+// Tipos de archivos permitidos
+const ALLOWED_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+]
+
+// Tamaño máximo de archivo (50MB)
+const MAX_FILE_SIZE = 50 * 1024 * 1024
+
+export async function POST(request: NextRequest) {
+  try {
+    const formData = await request.formData()
+    const file = formData.get("file") as File
+    const areaSlug = formData.get("areaId") as string
+    const moduleType = formData.get("moduleType") as string
+    const folderId = formData.get("folderId") as string
+    const name = formData.get("name") as string
+    const description = formData.get("description") as string
+
+    if (!file || !areaSlug || !moduleType || !folderId || !name) {
+      return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
+    }
+
+    // Validar tipo de archivo
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return NextResponse.json({ error: "Tipo de archivo no permitido" }, { status: 400 })
+    }
+
+    // Validar tamaño de archivo
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: "Archivo demasiado grande (máximo 50MB)" }, { status: 400 })
+    }
+
+    // Convertir el slug del área a un UUID válido si es necesario
+    let areaId: string = areaSlug
+    if (areaSlug && !areaSlug.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      // Si es un slug, convertir a UUID
+      const resolvedAreaId = SLUG_TO_AREA_IDS[areaSlug as keyof typeof SLUG_TO_AREA_IDS]
+      if (!resolvedAreaId) {
+        console.error(`Invalid area slug: ${areaSlug}`)
+        return NextResponse.json({ error: `Área inválida: ${areaSlug}` }, { status: 400 })
+      }
+      areaId = resolvedAreaId
+    }
+
+    console.log(`Subiendo documento: ${name} para área: ${areaId}, módulo: ${moduleType}`)
+
+    // Initialize Supabase client first
+    const supabase = createAdminClient()
+
+    // Try to determine which table to use for documents
+    const { data: tableInfo, error: tableError } = await supabase.rpc('exec_sql', {
+      sql: `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'carpetas' AND table_schema = 'public');`
+    })
+    
+    const useCarpetas = tableInfo && tableInfo[0] && tableInfo[0].exists
+
+    // Simplify by bypassing folder validation - just ensure folder ID is in valid UUID format
+    let finalFolderId = folderId
+    
+    // If invalid format or folder doesn't exist, generate a new UUID
+    if (!finalFolderId || !finalFolderId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      finalFolderId = uuidv4()
+      console.log(`Generated new folder ID: ${finalFolderId}`)
+    }
+
+    // Subir archivo a R2 usando el servicio centralizado
+    const { fileId, filePath, fileUrl } = await uploadDocument(file, areaId, moduleType as any, finalFolderId)
+
+    console.log(`Documento subido exitosamente a R2: ${filePath}`)
+
+    // Determine which table to use based on the database schema
+    let tableName = 'documents'
+
+    // Prepare insert data with correct column names
+    const insertData = {
+      id: fileId,
+      name: name,
+      description: description || "",
+      file_type: file.type,
+      file_size: file.size,
+      file_path: filePath,
+      file_url: fileUrl,
+      folder_id: finalFolderId,
+      area_id: areaId, // This is the UUID
+      module_type: moduleType
+    }
+
+    console.log(`Insertando en tabla ${tableName}:`, insertData)
+
+    // Try inserting into the documents table
+    const { data, error } = await supabase
+      .from(tableName)
+      .insert(insertData)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Error guardando metadatos del documento:", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      })
+      
+      // If foreign key error, the folder might not exist - create it first
+      if (error.code === '23503' && error.message.includes('folder_id_fkey')) {
+        console.log(`Creando carpeta con ID: ${finalFolderId}`)
+        
+        // Create folder first
+        const folderData = {
+          id: finalFolderId,
+          name: `Carpeta para ${moduleType}`,
+          color: "#3B82F6",
+          description: `Carpeta autogenerada para subida directa - ${name}`,
+          area_id: areaId,
+          module_type: moduleType,
+          category: "auto-generated"
+        }
+        
+        const { error: folderError } = await supabase
+          .from("folders")
+          .insert(folderData)
+          
+        if (folderError) {
+          console.error("Error creando carpeta:", folderError)
+          return NextResponse.json({ 
+            error: "Error creando carpeta para el documento", 
+            originalError: error.message,
+            folderError: folderError.message  
+          }, { status: 500 })
+        }
+        
+        // Try inserting document again
+        console.log("Reintentando inserción de documento...")
+        const { data: retryData, error: retryError } = await supabase
+          .from(tableName)
+          .insert(insertData)
+          .select()
+          .single()
+          
+        if (retryError) {
+          console.error("Error en segundo intento:", retryError)
+          return NextResponse.json({ 
+            error: retryError.message,
+            code: retryError.code,
+            details: retryError.details
+          }, { status: 500 })
+        }
+        
+        // Use retry data for the response
+        return NextResponse.json({
+          id: retryData.id,
+          name: retryData.name,
+          description: retryData.description,
+          fileType: retryData.file_type,
+          fileSize: retryData.file_size,
+          filePath: retryData.file_path,
+          fileUrl: retryData.file_url,
+          folderId: retryData.folder_id,
+          createdAt: retryData.created_at,
+          updatedAt: retryData.updated_at,
+        })
+      } else {
+        // For other errors, return as-is
+        return NextResponse.json({ 
+          error: error.message, 
+          code: error.code,
+          details: error.details
+        }, { status: 500 })
+      }
+    }
+
+    // Transformar los datos para que coincidan con la estructura esperada
+    const document = {
+      id: data.id,
+      name: data.name,
+      description: data.description,
+      fileType: data.file_type,
+      fileSize: data.file_size,
+      filePath: data.file_path,
+      fileUrl: data.file_url,
+      folderId: data.folder_id,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    }
+
+    return NextResponse.json(document)
+  } catch (error) {
+    console.error("Error in POST /api/documents/upload:", error)
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "Failed to upload document",
+      },
+      { status: 500 },
+    )
+  }
+}
