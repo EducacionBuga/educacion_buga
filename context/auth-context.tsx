@@ -5,6 +5,7 @@ import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import type { Database } from "@/types/supabase-types"
+import { ConnectionLoading } from "@/components/ui/connection-loading"
 
 // Tipos
 interface User {
@@ -29,12 +30,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [connectionRetries, setConnectionRetries] = useState(0)
   const supabase = createClientComponentClient<Database>()
 
   // Cache para evitar consultas duplicadas
   const [userCache, setUserCache] = useState<{ [userId: string]: User }>({})
 
-  // Función optimizada para obtener datos del usuario
+  // Función optimizada para obtener datos del usuario con timeout
   const fetchUserData = async (userId: string, email: string): Promise<User> => {
     console.log("👤 [AUTH-CONTEXT] fetchUserData llamada para:", { userId, email })
     
@@ -55,12 +57,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       console.log("🔍 [AUTH-CONTEXT] Buscando datos adicionales en BD...")
-      // Consulta optimizada con menos logs
-      const { data: userData, error: userError } = await supabase
+      
+      // Crear una Promise con timeout para evitar conexiones colgadas
+      const fetchPromise = supabase
         .from("usuarios")
         .select("nombre, rol")
         .eq("uuid", userId)
         .single()
+
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Database query timeout')), 5000) // 5 segundos timeout
+      })
+
+      const { data: userData, error: userError } = await Promise.race([
+        fetchPromise,
+        timeoutPromise
+      ]) as any
 
       console.log("📊 [AUTH-CONTEXT] Respuesta de BD:", { userData, error: userError?.message })
 
@@ -74,7 +86,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.warn("⚠️ [AUTH-CONTEXT] No se encontraron datos adicionales o error:", userError?.message)
       }
     } catch (error) {
-      console.warn("❌ [AUTH-CONTEXT] Error al obtener datos del usuario, usando datos básicos:", error)
+      console.warn("❌ [AUTH-CONTEXT] Error al obtener datos del usuario (usando datos básicos):", error)
+      // En caso de timeout o error, usar datos básicos del email
+      if (email.includes('secretariaeducacionbuga')) {
+        authUser.name = 'Administrador Secretaría de Educación'
+        authUser.role = 'ADMIN'
+      }
     }
 
     // Guardar en cache
@@ -87,8 +104,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initializeAuth = async () => {
       console.log("🚀 [AUTH-CONTEXT] Inicializando autenticación...")
+      
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
+        // Agregar timeout para la inicialización
+        const sessionPromise = supabase.auth.getSession()
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Session initialization timeout')), 8000) // 8 segundos
+        })
+
+        const { data: { session }, error } = await Promise.race([
+          sessionPromise,
+          timeoutPromise
+        ]) as any
 
         if (error) {
           console.error("❌ [AUTH-CONTEXT] Error al obtener la sesión:", error)
@@ -109,7 +136,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false)
       } catch (error) {
         console.error("❌ [AUTH-CONTEXT] Error al inicializar la autenticación:", error)
-        setLoading(false)
+        setConnectionRetries(prev => prev + 1)
+        
+        // Si hay muchos reintentos, mostrar mensaje especial
+        if (connectionRetries < 2) {
+          setTimeout(() => {
+            console.log("🔄 [AUTH-CONTEXT] Reintentando conexión...")
+            initializeAuth()
+          }, 2000) // Reintentar en 2 segundos
+        } else {
+          setLoading(false)
+        }
       }
     }
 
@@ -192,7 +229,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
       }}
     >
-      {children}
+      {loading ? (
+        <ConnectionLoading 
+          message={
+            connectionRetries > 0 
+              ? `Reintentando conexión... (intento ${connectionRetries + 1})`
+              : "Conectando con la base de datos..."
+          }
+          showTips={connectionRetries > 1}
+        />
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   )
 }
