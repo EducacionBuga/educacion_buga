@@ -77,36 +77,36 @@ export interface Database {
         Row: {
           id: string
           nombre: string
-          descripcion: string | null
+          descripcion: string
           color: string
           categoria: string
           area_id: string
           modulo: string
-          creado_por: string
+          fecha: string
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           nombre: string
-          descripcion?: string | null
-          color: string
+          descripcion?: string
+          color?: string
           categoria: string
           area_id: string
           modulo: string
-          creado_por: string
+          fecha: string
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           nombre?: string
-          descripcion?: string | null
+          descripcion?: string
           color?: string
           categoria?: string
           area_id?: string
           modulo?: string
-          creado_por?: string
+          fecha?: string
           created_at?: string
           updated_at?: string
         }
@@ -115,48 +115,42 @@ export interface Database {
         Row: {
           id: string
           nombre: string
-          descripcion: string | null
-          carpeta_id: string
-          tipo_archivo: string | null
+          descripcion: string
+          tipo_archivo: string
           tamano: number
-          r2_key: string
-          url_publica: string | null
-          r2_bucket: string
-          r2_prefijo: string
-          creado_por: string
-          estado: string
+          ruta_archivo: string
+          url_archivo: string
+          carpeta_id: string
+          area_id: string
+          modulo: string
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           nombre: string
-          descripcion?: string | null
-          carpeta_id: string
-          tipo_archivo?: string | null
+          descripcion?: string
+          tipo_archivo: string
           tamano: number
-          r2_key: string
-          url_publica?: string | null
-          r2_bucket: string
-          r2_prefijo: string
-          creado_por: string
-          estado?: string
+          ruta_archivo: string
+          url_archivo: string
+          carpeta_id: string
+          area_id: string
+          modulo: string
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           nombre?: string
-          descripcion?: string | null
-          carpeta_id?: string
-          tipo_archivo?: string | null
+          descripcion?: string
+          tipo_archivo?: string
           tamano?: number
-          r2_key?: string
-          url_publica?: string | null
-          r2_bucket?: string
-          r2_prefijo?: string
-          creado_por?: string
-          estado?: string
+          ruta_archivo?: string
+          url_archivo?: string
+          carpeta_id?: string
+          area_id?: string
+          modulo?: string
           created_at?: string
           updated_at?: string
         }
