@@ -2,7 +2,7 @@
 
 import { RoleGuard } from "@/components/auth/role-guard"
 import { ModuleHeader } from "@/components/dashboard/module-header"
-import { ListaChequeo } from "@/components/modules/lista-chequeo"
+import { ListaChequeoNew } from "@/components/modules/lista-chequeo-new"
 
 export default function ListaChequeoPage() {
   return (
@@ -10,7 +10,7 @@ export default function ListaChequeoPage() {
       <main className="min-h-screen">
         <ModuleHeader title="LISTA DE CHEQUEO" />
         <div className="container mx-auto">
-          <ListaChequeo />
+          <ListaChequeoNew />
         </div>
       </main>
     </RoleGuard>

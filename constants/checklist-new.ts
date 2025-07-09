@@ -20,14 +20,14 @@ export interface ChecklistFormData {
   items: ChecklistItemResponse[]
 }
 
-// Mapeo de códigos de área a sus IDs reales de la base de datos
-export const areaCodeToId: Record<string, string> = {
-  "calidad-educativa": "e286546b-216c-49cd-9a96-42366c0977f2",
-  "inspeccion-vigilancia": "502d6c5d-0a1e-43fa-85b7-ae91f774310d",
-  "cobertura-infraestructura": "2d8bf8a1-0557-4974-8212-a2f4a93a4fb2",
-  "talento-humano": "15bb34b0-25eb-407f-9ce7-f781fcd04ecc",
-  "planeacion": "05f3dac0-933e-46f8-aa80-17c7c0a906c1",
-  "despacho": "9850c4bd-119a-444d-831f-2f410bbbaf8b",
+// Mapeo de códigos de área a sus nombres para la consulta
+export const areaCodeToName: Record<string, string> = {
+  "calidad-educativa": "CALIDAD_EDUCATIVA",
+  "inspeccion-vigilancia": "INSPECCION_VIGILANCIA",
+  "cobertura-infraestructura": "COBERTURA_INFRAESTRUCTURA",
+  "talento-humano": "TALENTO_HUMANO",
+  planeacion: "PLANEACION",
+  despacho: "DESPACHO",
 }
 
 // Mapeo de tipos de contrato a hojas de Excel

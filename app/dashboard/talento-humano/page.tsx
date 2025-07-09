@@ -3,7 +3,6 @@
 import { RoleGuard } from "@/components/auth/role-guard"
 import { ModuleHeader } from "@/components/dashboard/module-header"
 import { ModuleCard } from "@/components/modules/module-card"
-import { DownloadableModuleCard } from "@/components/modules/downloadable-module-card"
 import { TrendingUp, FileText, ClipboardList, Users } from "lucide-react"
 
 export default function TalentoHumanoPage() {
@@ -30,6 +29,13 @@ export default function TalentoHumanoPage() {
       href: "/dashboard/talento-humano/prestacion-servicio",
       color: "green" as const,
     },
+    {
+      title: "Lista de Chequeo",
+      description: "Gestión y diligenciamiento de lista de chequeo contractual",
+      icon: <ClipboardList className="h-6 w-6" />,
+      href: "/dashboard/talento-humano/lista-chequeo",
+      color: "purple" as const,
+    },
   ]
 
   return (
@@ -49,15 +55,6 @@ export default function TalentoHumanoPage() {
                 badge={module.badge}
               />
             ))}
-            <DownloadableModuleCard
-              title="Lista de Chequeo"
-              description="Descarga la lista de chequeo en formato Excel"
-              icon={<ClipboardList className="h-6 w-6" />}
-              downloadUrl="/document/lista-de-chequeo.xlsx"
-              fileName="lista-de-chequeo.xlsx"
-              color="purple"
-              badge="Descarga"
-            />
           </div>
         </div>
       </main>

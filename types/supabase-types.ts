@@ -155,13 +155,130 @@ export interface Database {
           updated_at?: string
         }
       }
-      lista_chequeo_items: {
+      lista_chequeo_categorias: {
+        Row: {
+          id: string
+          nombre: string
+          descripcion: string | null
+          hoja_excel: string
+          orden: number
+          activo: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          nombre: string
+          descripcion?: string | null
+          hoja_excel: string
+          orden: number
+          activo?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          nombre?: string
+          descripcion?: string | null
+          hoja_excel?: string
+          orden?: number
+          activo?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      lista_chequeo_etapas: {
+        Row: {
+          id: string
+          nombre: string
+          descripcion: string | null
+          orden: number
+          activo: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          nombre: string
+          descripcion?: string | null
+          orden: number
+          activo?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          nombre?: string
+          descripcion?: string | null
+          orden?: number
+          activo?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      lista_chequeo_items_maestros: {
+        Row: {
+          id: string
+          numero_item: number
+          titulo: string
+          descripcion: string
+          etapa_id: string
+          activo: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          numero_item: number
+          titulo: string
+          descripcion: string
+          etapa_id: string
+          activo?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          numero_item?: number
+          titulo?: string
+          descripcion?: string
+          etapa_id?: string
+          activo?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      lista_chequeo_item_categorias: {
+        Row: {
+          id: string
+          item_id: string
+          categoria_id: string
+          fila_excel: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          item_id: string
+          categoria_id: string
+          fila_excel: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          item_id?: string
+          categoria_id?: string
+          fila_excel?: number
+          created_at?: string
+        }
+      }
+      lista_chequeo_respuestas: {
         Row: {
           id: string
           area_id: string
-          category: string
-          description: string
-          completed: boolean
+          categoria_id: string
+          item_id: string
+          respuesta: string | null
+          observaciones: string | null
           user_id: string | null
           created_at: string
           updated_at: string
@@ -169,9 +286,10 @@ export interface Database {
         Insert: {
           id?: string
           area_id: string
-          category: string
-          description: string
-          completed?: boolean
+          categoria_id: string
+          item_id: string
+          respuesta?: string | null
+          observaciones?: string | null
           user_id?: string | null
           created_at?: string
           updated_at?: string
@@ -179,9 +297,10 @@ export interface Database {
         Update: {
           id?: string
           area_id?: string
-          category?: string
-          description?: string
-          completed?: boolean
+          categoria_id?: string
+          item_id?: string
+          respuesta?: string | null
+          observaciones?: string | null
           user_id?: string | null
           created_at?: string
           updated_at?: string
@@ -245,6 +364,38 @@ export interface Database {
           estado?: string
           prioridad?: string | null
           user_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      plan_validaciones: {
+        Row: {
+          id: string
+          plan_id: string
+          estado_validacion: "pendiente" | "aprobado" | "rechazado" | "en_revision"
+          comentarios: string | null
+          validado_por: string | null
+          fecha_validacion: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          plan_id: string
+          estado_validacion?: "pendiente" | "aprobado" | "rechazado" | "en_revision"
+          comentarios?: string | null
+          validado_por?: string | null
+          fecha_validacion?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          plan_id?: string
+          estado_validacion?: "pendiente" | "aprobado" | "rechazado" | "en_revision"
+          comentarios?: string | null
+          validado_por?: string | null
+          fecha_validacion?: string | null
           created_at?: string
           updated_at?: string
         }

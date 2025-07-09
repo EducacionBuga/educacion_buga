@@ -101,5 +101,24 @@ export const createAdminClient = () => {
   })
 }
 
+// Crear cliente para API routes (mantiene cookies del usuario)
+export const createApiClient = () => {
+  return createSupabaseClient(supabaseUrl || "", supabaseAnonKey || "", {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false
+    },
+    db: {
+      schema: 'public'
+    },
+    global: {
+      headers: {
+        'X-Client-Info': 'supabase-js-api'
+      }
+    }
+  })
+}
+
 // Exportar cliente por defecto (para compatibilidad con código existente)
 export default createClient()

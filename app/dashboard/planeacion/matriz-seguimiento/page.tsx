@@ -35,7 +35,7 @@ export default function MatrizSeguimientoPage() {
   const [areaFilter, setAreaFilter] = useState("todas")
   const [estadoFilter, setEstadoFilter] = useState("todos")
 
-  const { data: matrizData, isLoading, isError, error, refetch } = useMatrizSeguimiento()
+  const { data: matrizData, isLoading, isError, error, refetch, updatePlanEstado } = useMatrizSeguimiento()
 
   const { filteredData, dataByArea } = useMatrizFilters({
     matrizData,
@@ -86,6 +86,7 @@ export default function MatrizSeguimientoPage() {
                   isError={isError}
                   error={error}
                   refetch={refetch}
+                  updatePlanEstado={updatePlanEstado}
                   searchTerm={searchTerm}
                   setSearchTerm={setSearchTerm}
                   areaFilter={areaFilter}

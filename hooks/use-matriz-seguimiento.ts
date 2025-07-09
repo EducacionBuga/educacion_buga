@@ -1,8 +1,7 @@
-"use client"
-
 import { useCallback, useEffect, useState } from "react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import type { Database } from "@/types/supabase-types"
+import type { PlanValidacion } from "./use-plan-validaciones"
 
 export interface MatrizSeguimientoItem {
   id: string
@@ -25,6 +24,7 @@ export interface MatrizSeguimientoItem {
   metaDecenal?: string
   macroobjetivoDecenal?: string
   objetivoDecenal?: string
+  validacion?: PlanValidacion
 }
 
 const defaultAreaColors: { [key: string]: string } = {
@@ -97,8 +97,7 @@ export const useMatrizSeguimiento = () => {
         })
       })
 
-      // Obtener todos los planes de acción
-      // Modificamos la consulta para incluir los campos del Plan Decenal
+      // Obtener todos los planes de acción con validaciones
       const { data: planesData, error: planesError } = await supabase
         .from("plan_accion")
         .select(`
@@ -130,6 +129,22 @@ export const useMatrizSeguimiento = () => {
         throw planesError
       }
 
+      // Obtener validaciones para todos los planes
+      const { data: validacionesData, error: validacionesError } = await supabase
+        .from("plan_validaciones")
+        .select("*")
+
+      if (validacionesError) {
+        console.error("Error cargando validaciones:", validacionesError)
+        // No lanzamos error aquí, las validaciones son opcionales
+      }
+
+      // Crear un mapa de validaciones por plan_id
+      const validacionesMap = new Map()
+      validacionesData?.forEach((validacion) => {
+        validacionesMap.set(validacion.plan_id, validacion)
+      })
+
       console.log(`Encontrados ${planesData?.length || 0} planes de acción en total`)
 
       // Transformar los datos para la matriz
@@ -143,6 +158,8 @@ export const useMatrizSeguimiento = () => {
           code: "UNKNOWN",
           color: "gray",
         }
+
+        const validacion = validacionesMap.get(plan.id)
 
         combinedData.push({
           id: plan.id,
@@ -162,6 +179,7 @@ export const useMatrizSeguimiento = () => {
           estado: plan.estado || "Pendiente",
           prioridad: plan.prioridad || "Media",
           descripcion: plan.comentarios || plan.acciones || "",
+          validacion: validacion || undefined,
           // Mapear campos del Plan Decenal desde la base de datos
           metaDecenal: plan.meta_docenal || "",
           macroobjetivoDecenal: plan.macroobjetivo_docenal || "",
@@ -196,11 +214,32 @@ export const useMatrizSeguimiento = () => {
     }
   }, [loadData, supabase])
 
+  const updatePlanEstado = useCallback(async (planId: string, nuevoEstado: string) => {
+    try {
+      const { error } = await supabase
+        .from("plan_accion")
+        .update({ estado: nuevoEstado })
+        .eq("id", planId)
+
+      if (error) {
+        console.error("Error actualizando estado del plan:", error)
+        throw error
+      }
+
+      // Recargar los datos después de la actualización
+      await loadData()
+    } catch (error) {
+      console.error("Error updating plan estado:", error)
+      throw error
+    }
+  }, [supabase, loadData])
+
   return {
     data,
     isLoading,
     isError: false, // Agregar este valor
     error: null, // Agregar este valor
     refetch: loadData, // Agregar esta función
+    updatePlanEstado, // Nueva función para actualizar estado
   }
 }

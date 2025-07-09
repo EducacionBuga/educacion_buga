@@ -1,6 +1,17 @@
 // utils/plan-accion.ts
 import { format } from "date-fns"
-import { PlanAccionEstado, type PlanAccionItem, type PlanAccionStats } from "@/types/plan-accion"
+import { PlanAccionEstado, type PlanAccionItem } from "@/types/plan-accion"
+
+export interface PlanAccionStats {
+  total: number
+  completados: number
+  enProgreso: number
+  retrasados: number
+  presupuestoTotal: number
+  avancePromedio: number
+  estadosCount: Record<string, number>
+  totalItems: number
+}
 
 // Expresión regular para validar formato de presupuesto
 export const PRESUPUESTO_REGEX = /^\$?[\d,.]+$/
@@ -67,6 +78,10 @@ export const calculateStats = (items: PlanAccionItem[]): PlanAccionStats => {
   )
 
   return {
+    total: totalItems,
+    completados: estadosCount[PlanAccionEstado.COMPLETADO] || 0,
+    enProgreso: estadosCount[PlanAccionEstado.EN_PROGRESO] || 0,
+    retrasados: estadosCount[PlanAccionEstado.RETRASADO] || 0,
     presupuestoTotal,
     avancePromedio,
     estadosCount,
@@ -80,8 +95,10 @@ export const extractNumberFromCurrency = (value: string): number => {
 }
 
 // Función para formatear números como moneda colombiana
-export const formatCurrency = (value: number): string => {
-  return value.toLocaleString("es-CO", {
+export const formatCurrency = (value: number | string | null | undefined): string => {
+  const numValue = typeof value === 'number' ? value : Number.parseFloat(String(value || "0").replace(/[^0-9.-]+/g, "")) || 0
+  
+  return numValue.toLocaleString("es-CO", {
     style: "currency",
     currency: "COP",
     minimumFractionDigits: 0,

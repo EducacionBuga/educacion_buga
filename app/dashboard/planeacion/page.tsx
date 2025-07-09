@@ -14,14 +14,14 @@ export default function PlaneacionPage() {
       description: "Gestión y seguimiento del plan de acción institucional",
       icon: <ClipboardList className="h-5 w-5" />,
       href: "/dashboard/planeacion/plan-accion",
-      color: "blue",
+      color: "blue" as const,
     },
     {
       title: "Matriz de Seguimiento",
       description: "Seguimiento a indicadores y metas institucionales",
       icon: <BarChart3 className="h-5 w-5" />,
       href: "/dashboard/planeacion/matriz-seguimiento",
-      color: "green",
+      color: "green" as const,
     },
   ]
 
@@ -39,7 +39,7 @@ export default function PlaneacionPage() {
         searchTerm={searchTerm}
         onSearch={setSearchTerm}
       />
-      <ModuleGrid modules={filteredModules} columns={2} />
+      <ModuleGrid modules={filteredModules} columns={3} />
     </div>
   )
 }

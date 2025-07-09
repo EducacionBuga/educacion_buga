@@ -5,6 +5,12 @@ import type { NextRequest } from 'next/server'
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
   
+  // Permitir APIs de checklist sin autenticación
+  if (req.nextUrl.pathname.startsWith('/api/checklist/') || 
+      req.nextUrl.pathname.startsWith('/api/test/')) {
+    return res
+  }
+  
   try {
     // Crear cliente de Supabase con timeout optimizado
     const supabase = createMiddlewareClient({ req, res })

@@ -5,11 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { FileSpreadsheet, CheckCircle2, Clock, AlertCircle, X } from "lucide-react"
 import { getColorClass } from "@/utils/areas"
-import { StatusBadge } from "@/components/ui/status-badge"
+import { EstadoSelect } from "@/components/matriz/estado-select"
 import { ErrorState } from "@/components/matriz/error-state"
 import { EmptyState } from "@/components/matriz/empty-state"
+import { ValidacionBadge } from "@/components/matriz/validacion-badge"
 import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table"
 import type { MatrizSeguimientoItem } from "@/hooks/use-matriz-seguimiento"
+import { useValidaciones } from "@/hooks/use-plan-validaciones"
 import { calculateStats, formatCurrency } from "@/utils/plan-accion"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -20,6 +22,7 @@ interface MatrizGeneralTabProps {
   isError: boolean
   error: any
   refetch: () => void
+  updatePlanEstado: (planId: string, nuevoEstado: string) => Promise<void>
   searchTerm: string
   setSearchTerm: (value: string) => void
   areaFilter: string
@@ -35,6 +38,7 @@ export function MatrizGeneralTab({
   isError,
   error,
   refetch,
+  updatePlanEstado,
   searchTerm,
   setSearchTerm,
   areaFilter,
@@ -43,6 +47,14 @@ export function MatrizGeneralTab({
   setEstadoFilter,
   handleClearFilters,
 }: MatrizGeneralTabProps) {
+  
+  // Hook para manejar las validaciones
+  const { 
+    isAdmin, 
+    validarPlan, 
+    loading: validacionLoading 
+  } = useValidaciones({ refetchMatriz: refetch })
+
   const columns: ColumnDef<MatrizSeguimientoItem>[] = [
     {
       accessorKey: "metaDecenal",
@@ -117,7 +129,13 @@ export function MatrizGeneralTab({
     {
       accessorKey: "estado",
       header: "Estado",
-      cell: ({ row }) => <StatusBadge status={row.getValue("estado")} />,
+      cell: ({ row }) => (
+        <EstadoSelect 
+          planId={row.original.id}
+          currentEstado={row.getValue("estado")}
+          onEstadoChange={updatePlanEstado}
+        />
+      ),
     },
     {
       accessorKey: "avance",
@@ -140,6 +158,19 @@ export function MatrizGeneralTab({
         </div>
       ),
     },
+    {
+      accessorKey: "validacion",
+      header: "Validación",
+      cell: ({ row }) => (
+        <ValidacionBadge
+          planId={row.original.id}
+          validacion={row.original.validacion}
+          isAdmin={isAdmin}
+          onValidar={validarPlan}
+          loading={validacionLoading}
+        />
+      ),
+    },
   ]
 
   const table = useReactTable({
@@ -155,7 +186,42 @@ export function MatrizGeneralTab({
     return Math.round(totalAvance / data.length)
   }, [data])
 
-  const stats = useMemo(() => calculateStats(data), [data])
+  // Calcular estadísticas específicas para la matriz
+  const stats = useMemo(() => {
+    if (data.length === 0) return {
+      total: 0,
+      completados: 0,
+      enProceso: 0,
+      pendientes: 0,
+      retrasados: 0,
+      presupuestoTotal: 0,
+    }
+
+    const completados = data.filter(item => item.estado === "Completado").length
+    const enProceso = data.filter(item => item.estado === "En Proceso").length
+    const pendientes = data.filter(item => item.estado === "Pendiente").length
+    const retrasados = data.filter(item => item.estado === "Retrasado").length
+    
+    // Calcular presupuesto total
+    const presupuestoTotal = data.reduce((sum, item) => {
+      const presupuesto = item.presupuesto
+      if (presupuesto && typeof presupuesto === 'string') {
+        // Extraer número del formato de presupuesto (ej: "$1,000,000" -> 1000000)
+        const numero = Number.parseFloat(presupuesto.replace(/[^0-9.-]+/g, "")) || 0
+        return sum + numero
+      }
+      return sum
+    }, 0)
+
+    return {
+      total: data.length,
+      completados,
+      enProceso,
+      pendientes,
+      retrasados,
+      presupuestoTotal,
+    }
+  }, [data])
 
   // Determinar el color del avance promedio
   const getAvanceColor = (avance: number) => {
