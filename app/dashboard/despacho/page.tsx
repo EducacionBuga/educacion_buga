@@ -3,7 +3,7 @@
 import { RoleGuard } from "@/components/auth/role-guard"
 import { ModuleHeader } from "@/components/dashboard/module-header"
 import { ModuleGrid } from "@/components/modules/module-grid"
-import { BarChart, FileText, ClipboardList } from "lucide-react"
+import { BarChart, FileText } from "lucide-react"
 
 export default function DespachoPage() {
   const modules = [
@@ -20,13 +20,6 @@ export default function DespachoPage() {
       icon: <FileText className="h-6 w-6" />,
       href: "/dashboard/despacho/registros",
       color: "green" as const,
-    },
-    {
-      title: "Lista de Chequeo",
-      description: "Gestión documental contractual",
-      icon: <ClipboardList className="h-6 w-6" />,
-      href: "/dashboard/despacho/lista-chequeo",
-      color: "purple" as const,
     },
   ]
 
