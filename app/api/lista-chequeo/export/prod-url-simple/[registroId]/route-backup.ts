@@ -129,7 +129,6 @@ export async function GET(
       console.log(`📝 Respuestas encontradas: ${respuestas?.length || 0}`);
 
       // 6. Obtener items para mapear con las respuestas
-      // Como los items no tienen categoria_id, obtenemos todos y los filtramos después
       const { data: itemsDB, error: itemsError } = await supabase
         .from('lista_chequeo_items_maestros')
         .select('*');
@@ -174,52 +173,21 @@ export async function GET(
       }
     }
 
-    // 8. Obtener todas las categorías para mapear respuestas por hoja
-    const { data: todasCategorias, error: categoriasError } = await supabase
-      .from('lista_chequeo_categorias')
-      .select('*')
-      .eq('activo', true)
-      .order('orden');
-
-    if (categoriasError) {
-      console.warn('⚠️ Error obteniendo categorías:', categoriasError.message);
-    }
-
-    const categoriasPorHoja = new Map();
-    todasCategorias?.forEach((cat: any) => {
-      categoriasPorHoja.set(cat.hoja_excel, cat);
-      console.log(`📂 Categoría mapeada: ${cat.hoja_excel} → ${cat.nombre} (ID: ${cat.id})`);
-    });
-
-    // 9. Obtener todas las respuestas para este registro
-    const { data: todasRespuestas, error: todasRespuestasError } = await supabase
-      .from('lista_chequeo_respuestas')
-      .select('*')
-      .eq('registro_id', registroId);
-
-    if (todasRespuestasError) {
-      console.warn('⚠️ Error obteniendo todas las respuestas:', todasRespuestasError.message);
-    }
-
-    console.log(`📝 Total respuestas encontradas: ${todasRespuestas?.length || 0}`);
-
-    // Crear mapa general de respuestas por item_id
-    const respuestasGeneralMap = new Map();
-    todasRespuestas?.forEach((respuesta: any) => {
-      respuestasGeneralMap.set(respuesta.item_id, respuesta);
+    // 7. Crear mapa de respuestas por item_id
+    const respuestasMap = new Map();
+    respuestas?.forEach((respuesta: any) => {
+      respuestasMap.set(respuesta.item_id, respuesta);
       console.log(`📝 Respuesta mapeada: Item ${respuesta.item_id} = ${respuesta.respuesta}`);
     });
 
-    // 10. Modificar todas las hojas con información del contrato y respuestas específicas
+    console.log(`🗺️ Mapa de respuestas creado con ${respuestasMap.size} entradas`);
+
+    // 8. Modificar TODAS las hojas con información del contrato y respuestas
     let totalRespuestasAplicadas = 0;
     
     workbook.worksheets.forEach((worksheet, index) => {
       const nombreHoja = worksheet.name;
       console.log(`🔄 Procesando hoja ${index + 1}: ${nombreHoja}`);
-
-      // Obtener la categoría correspondiente a esta hoja
-      const categoriaHoja = categoriasPorHoja.get(nombreHoja);
-      console.log(`� Categoría para hoja ${nombreHoja}:`, categoriaHoja?.nombre || 'No encontrada');
 
       // Llenar información del contrato en TODAS las hojas
       worksheet.eachRow((row, rowNumber) => {
@@ -239,24 +207,10 @@ export async function GET(
         });
       });
 
-      // Filtrar respuestas específicas para esta categoría/hoja
-      const respuestasParaHoja = todasRespuestas?.filter((resp: any) => {
-        return resp.lista_chequeo_items_maestros?.categoria_id === categoriaHoja?.id;
-      }) || [];
-
-      console.log(`🎯 Respuestas para hoja ${nombreHoja}: ${respuestasParaHoja.length}`);
-
-      // Crear mapa de respuestas para esta hoja específica
-      const respuestasMapHoja = new Map();
-      respuestasParaHoja.forEach((respuesta: any) => {
-        respuestasMapHoja.set(respuesta.item_id, respuesta);
-        console.log(`� Respuesta para ${nombreHoja}: Item ${respuesta.item_id} = ${respuesta.respuesta}`);
-      });
-
-      // Llenar respuestas de los ítems para esta hoja específica
+      // Llenar respuestas de los ítems en TODAS las hojas
       let respuestasEnHoja = 0;
       items?.forEach((item: any) => {
-        const respuesta = respuestasMapHoja.get(item.id);
+        const respuesta = respuestasMap.get(item.id);
         if (respuesta && item.fila_excel) {
           const fila = item.fila_excel;
           
