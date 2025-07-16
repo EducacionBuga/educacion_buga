@@ -115,36 +115,173 @@ export async function GET(
       }, { status: 503 });
     }
 
-    // 5. Obtener datos del registro
-    let registroData;
+    // 5. Obtener datos completos del registro
+    let registroData, todasLasRespuestas;
     try {
-      const { data, error } = await supabase
+      // Obtener registro con categoría
+      const { data: registro, error: registroError } = await supabase
         .from('lista_chequeo_registros')
-        .select('*')
+        .select(`
+          id,
+          numero_contrato,
+          contratista,
+          valor_contrato,
+          objeto,
+          categoria:lista_chequeo_categorias(nombre)
+        `)
         .eq('id', registroId)
         .single();
         
-      if (error || !data) {
-        console.error('❌ Registro no encontrado:', error);
+      if (registroError || !registro) {
+        console.error('❌ Registro no encontrado:', registroError);
         return NextResponse.json({
           error: 'Registro no encontrado',
-          details: error?.message || 'El registro no existe',
+          details: registroError?.message || 'El registro no existe',
           registroId
         }, { status: 404 });
       }
       
-      registroData = data;
+      registroData = registro;
       console.log('✅ Registro encontrado:', registroData.numero_contrato);
+
+      // Obtener todas las respuestas del registro
+      const { data: respuestas, error: respuestasError } = await supabase
+        .from('lista_chequeo_respuestas')
+        .select(`
+          *,
+          item:lista_chequeo_items_maestros(
+            id,
+            numero,
+            orden,
+            titulo,
+            texto,
+            categoria_id,
+            categoria:lista_chequeo_categorias(nombre)
+          )
+        `)
+        .eq('registro_id', registroId);
+
+      if (respuestasError) {
+        console.warn('⚠️ Error obteniendo respuestas, continuando sin ellas:', respuestasError);
+        todasLasRespuestas = [];
+      } else {
+        todasLasRespuestas = respuestas || [];
+      }
+
+      console.log(`✅ Respuestas obtenidas: ${todasLasRespuestas.length}`);
+      
     } catch (queryError) {
-      console.error('❌ Error consultando registro:', queryError);
+      console.error('❌ Error consultando datos:', queryError);
       return NextResponse.json({
-        error: 'Error consultando el registro',
+        error: 'Error consultando datos del registro',
         details: queryError instanceof Error ? queryError.message : 'Error de consulta'
       }, { status: 500 });
     }
 
-    // 6. Crear Excel básico (sin plantilla para evitar errores de archivo)
+    // 6. Obtener datos por apartado
+    let datosPorApartado: Record<string, any> = {};
     try {
+      const apartados = ['SAMC', 'MINIMA CUANTÍA', 'CONTRATO INTERADMINISTRATIVO', 'PRESTACIÓN DE SERVICIOS'];
+      
+      for (const apartado of apartados) {
+        try {
+          // Buscar categoría del apartado
+          const { data: categoria, error: categoriaError } = await supabase
+            .from('lista_chequeo_categorias')
+            .select('id, nombre')
+            .eq('nombre', apartado)
+            .single();
+
+          if (categoriaError || !categoria) {
+            console.log(`⚠️ Categoría ${apartado} no encontrada, creando hoja vacía`);
+            datosPorApartado[apartado] = {
+              items: [],
+              respuestas: []
+            };
+            continue;
+          }
+
+          // Obtener ítems del apartado
+          const { data: items, error: itemsError } = await supabase
+            .from('lista_chequeo_items_maestros')
+            .select('id, numero, orden, titulo, texto, categoria_id')
+            .eq('categoria_id', categoria.id)
+            .order('orden');
+
+          // Filtrar respuestas que corresponden a este apartado
+          const respuestasApartado = todasLasRespuestas?.filter((resp: any) => 
+            resp.item?.categoria_id === categoria.id
+          ) || [];
+
+          datosPorApartado[apartado] = {
+            items: items || [],
+            respuestas: respuestasApartado,
+            categoria: categoria
+          };
+
+          console.log(`📊 Apartado ${apartado}: ${items?.length || 0} ítems, ${respuestasApartado.length} respuestas`);
+        } catch (apartadoError) {
+          console.warn(`⚠️ Error procesando apartado ${apartado}:`, apartadoError);
+          datosPorApartado[apartado] = {
+            items: [],
+            respuestas: []
+          };
+        }
+      }
+    } catch (apartadosError) {
+      console.warn('⚠️ Error obteniendo apartados, usando estructura básica:', apartadosError);
+      datosPorApartado = {
+        'SAMC': { items: [], respuestas: [] },
+        'MINIMA CUANTÍA': { items: [], respuestas: [] },
+        'CONTRATO INTERADMINISTRATIVO': { items: [], respuestas: [] },
+        'PRESTACIÓN DE SERVICIOS': { items: [], respuestas: [] }
+      };
+    }
+
+    // 7. Generar Excel usando el servicio original
+    try {
+      console.log('📊 Generando Excel con plantilla...');
+      
+      // Intentar importar el servicio de Excel
+      let ExcelExportService;
+      try {
+        ExcelExportService = (await import('@/lib/excel-export-service')).default;
+        console.log('✅ Servicio Excel importado');
+      } catch (serviceError) {
+        console.warn('⚠️ No se pudo importar el servicio Excel, usando generación básica');
+        throw new Error('Servicio Excel no disponible');
+      }
+
+      // Preparar información del contrato
+      const contratoInfo = {
+        contrato: registroData.numero_contrato || 'SIN_CONTRATO',
+        contratista: registroData.contratista || 'SIN_CONTRATISTA', 
+        valor: registroData.valor_contrato || 0,
+        objeto: registroData.objeto || 'SIN_OBJETO'
+      };
+
+      // Usar el servicio de exportación original
+      const buffer = await ExcelExportService.exportarContratoMultiple(contratoInfo, datosPorApartado);
+      
+      const nombreArchivo = ExcelExportService.generarNombreArchivo(
+        contratoInfo.contrato,
+        'MÚLTIPLE'
+      );
+
+      console.log('✅ Excel generado exitosamente con plantilla:', nombreArchivo);
+      
+      return new NextResponse(buffer as any, {
+        headers: {
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Content-Disposition': `attachment; filename="${nombreArchivo}"`,
+          'Content-Length': buffer.length.toString(),
+        },
+      });
+      
+    } catch (excelError) {
+      console.warn('⚠️ Error con servicio Excel, generando Excel básico como fallback final:', excelError);
+      
+      // Fallback final: Excel básico sin plantilla
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Lista Chequeo');
       
@@ -158,7 +295,7 @@ export async function GET(
       worksheet.getCell('A5').value = `Valor: $${registroData.valor_contrato || 0}`;
       worksheet.getCell('A6').value = `Fecha: ${new Date().toLocaleDateString()}`;
       
-      // Tabla de ejemplo
+      // Tabla básica con datos reales si los hay
       worksheet.getCell('A8').value = 'No.';
       worksheet.getCell('B8').value = 'Descripción';
       worksheet.getCell('C8').value = 'Estado';
@@ -174,11 +311,35 @@ export async function GET(
         };
       });
       
-      // Datos de ejemplo
-      worksheet.getCell('A9').value = '1';
-      worksheet.getCell('B9').value = 'Documentos contractuales';
-      worksheet.getCell('C9').value = 'PENDIENTE';
-      worksheet.getCell('D9').value = 'Revisar documentación';
+      // Llenar con datos reales si están disponibles
+      let fila = 9;
+      if (datosPorApartado && Object.keys(datosPorApartado).length > 0) {
+        for (const [apartado, datos] of Object.entries(datosPorApartado)) {
+          if (datos.items && datos.items.length > 0) {
+            worksheet.getCell(`A${fila}`).value = apartado;
+            worksheet.getCell(`A${fila}`).font = { bold: true };
+            fila++;
+            
+            datos.items.forEach((item: any, index: number) => {
+              const respuesta = datos.respuestas?.find((r: any) => r.item_id === item.id);
+              
+              worksheet.getCell(`A${fila}`).value = item.numero || (index + 1);
+              worksheet.getCell(`B${fila}`).value = item.titulo || item.texto || 'Sin descripción';
+              worksheet.getCell(`C${fila}`).value = respuesta?.respuesta || 'SIN RESPUESTA';
+              worksheet.getCell(`D${fila}`).value = respuesta?.observaciones || '';
+              
+              fila++;
+            });
+            fila++; // Espacio entre apartados
+          }
+        }
+      } else {
+        // Datos de ejemplo si no hay datos reales
+        worksheet.getCell('A9').value = '1';
+        worksheet.getCell('B9').value = 'Lista de chequeo contractual';
+        worksheet.getCell('C9').value = 'PENDIENTE';
+        worksheet.getCell('D9').value = 'Datos no disponibles en este momento';
+      }
       
       // Ajustar columnas
       worksheet.getColumn('A').width = 10;
@@ -189,9 +350,9 @@ export async function GET(
       const buffer = await workbook.xlsx.writeBuffer();
       const bufferArray = Buffer.from(buffer);
       
-      console.log('✅ Excel generado exitosamente');
+      console.log('✅ Excel básico generado exitosamente como fallback final');
       
-      const filename = `Lista_Chequeo_${registroData.numero_contrato || 'Contrato'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const filename = `Lista_Chequeo_Fallback_${registroData.numero_contrato || 'Contrato'}_${new Date().toISOString().split('T')[0]}.xlsx`;
       
       return new NextResponse(bufferArray, {
         headers: {
@@ -200,13 +361,6 @@ export async function GET(
           'Content-Length': bufferArray.length.toString(),
         },
       });
-      
-    } catch (excelError) {
-      console.error('❌ Error generando Excel:', excelError);
-      return NextResponse.json({
-        error: 'Error generando archivo Excel',
-        details: excelError instanceof Error ? excelError.message : 'Error de generación'
-      }, { status: 500 });
     }
 
   } catch (globalError) {
