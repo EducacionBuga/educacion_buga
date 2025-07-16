@@ -3,23 +3,18 @@
 import { useState, useCallback, lazy } from "react"
 import { ModuleHeader } from "@/components/dashboard/module-header"
 import { RoleGuard } from "@/components/auth/role-guard"
-import { FileSpreadsheet, Clock, FolderOpen } from "lucide-react"
+import { FileSpreadsheet, Clock } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useMatrizSeguimiento } from "@/hooks/use-matriz-seguimiento"
 import { useMatrizFilters } from "@/hooks/use-matriz-filters"
-import { useDocumentosReport } from "@/hooks/use-documentos-report"
 
 // Lazy load de componentes pesados
 const TimelineView = lazy(() =>
   import("@/components/dashboard/timeline-view").then((mod) => ({ default: mod.TimelineView })),
 )
-const DocumentosReport = lazy(() =>
-  import("@/components/dashboard/documentos-report").then((mod) => ({ default: mod.DocumentosReport })),
-)
 
 import { MatrizGeneralTab } from "./matriz-general-tab"
 import { TimelineTab } from "./timeline-tab"
-import { DocumentosTab } from "./documentos-tab"
 
 // Componente de carga para Suspense
 const LoadingFallback = () => (
@@ -43,8 +38,6 @@ export default function MatrizSeguimientoPage() {
     areaFilter,
     estadoFilter,
   })
-
-  const { documentosData, foldersData, isLoadingDocumentos, error: documentosError, refetchDocumentos, stats } = useDocumentosReport()
 
   const handleClearFilters = useCallback(() => {
     setSearchTerm("")
@@ -73,10 +66,6 @@ export default function MatrizSeguimientoPage() {
                   <Clock className="mr-2 h-4 w-4" aria-hidden="true" />
                   <span>Línea de Tiempo</span>
                 </TabsTrigger>
-                <TabsTrigger value="documentos" className="flex items-center">
-                  <FolderOpen className="mr-2 h-4 w-4" aria-hidden="true" />
-                  <span>Reporte de Documentos</span>
-                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="matriz">
@@ -99,10 +88,6 @@ export default function MatrizSeguimientoPage() {
 
               <TabsContent value="timeline">
                 <TimelineTab projects={filteredData} />
-              </TabsContent>
-
-              <TabsContent value="documentos">
-                <DocumentosTab />
               </TabsContent>
             </Tabs>
           </div>

@@ -38,7 +38,7 @@ export function PlanAccionToolbar({ searchTerm, onSearchChange, onAddClick, onEx
           <Plus className="mr-2 h-4 w-4" />
           Añadir
         </Button>
-        <Button size="sm" variant="outline" onClick={onExportClick} aria-label="Exportar a CSV">
+        <Button size="sm" variant="outline" onClick={onExportClick} aria-label="Exportar a Excel">
           Exportar
         </Button>
       </div>

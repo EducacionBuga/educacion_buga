@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import type { MatrizSeguimientoItem } from "@/types/plan-accion"
+import type { MatrizSeguimientoItem } from "@/hooks/use-matriz-seguimiento"
 
 interface UseMatrizFiltersProps {
   matrizData: MatrizSeguimientoItem[]
@@ -22,7 +22,7 @@ export function useMatrizFilters({ matrizData, searchTerm, areaFilter, estadoFil
         (item.responsable?.toLowerCase() || "").includes(searchTerm.toLowerCase())
 
       // Filtro de área
-      const matchesArea = areaFilter === "todas" || item.areaId === areaFilter
+      const matchesArea = areaFilter === "todas" || item.area === areaFilter
 
       // Filtro de estado
       const matchesEstado = estadoFilter === "todos" || item.estado === estadoFilter

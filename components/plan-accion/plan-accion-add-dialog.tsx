@@ -5,35 +5,69 @@ import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
 import { AlertCircle, Save } from "lucide-react"
 import { PlanAccionEstado, type PlanAccionItem } from "@/types/plan-accion"
 import { usePlanAccionForm } from "@/hooks/use-plan-accion-form"
 import { DatePicker } from "@/components/ui/date-picker"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { planesDesarrolloMunicipal, getSubprogramasByPrograma, getProyectosBySubprograma } from "@/constants/plan-desarrollo-municipal"
+
+// Helper function to safely format dates for input[type="date"]
+const formatDateForInput = (date: Date | null): string => {
+  if (!date || isNaN(date.getTime())) {
+    return ""
+  }
+  return date.toISOString().split('T')[0]
+}
 
 interface PlanAccionAddDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (item: PlanAccionItem) => void
   isSubmitting: boolean
+  initialItem?: PlanAccionItem | null
+  mode?: "add" | "edit"
 }
 
-export function PlanAccionAddDialog({ open, onOpenChange, onSubmit, isSubmitting }: PlanAccionAddDialogProps) {
+export function PlanAccionAddDialog({ 
+  open, 
+  onOpenChange, 
+  onSubmit, 
+  isSubmitting, 
+  initialItem = null, 
+  mode = "add" 
+}: PlanAccionAddDialogProps) {
   const {
     item,
     errors,
     fechaInicioDate,
     fechaFinDate,
     updateField,
+    updatePlanPDM,
     setFechaInicioDate,
     setFechaFinDate,
     validateForm,
     resetForm,
+    setItem,
     handleSubmit,
   } = usePlanAccionForm((formItem) => {
     console.log("🎯 DATOS DEL FORMULARIO RECIBIDOS:", formItem)
     onSubmit(formItem)
   })
+
+  // Inicializar el formulario cuando se abra en modo edición
+  useEffect(() => {
+    console.log("🔧 useEffect triggered:", { open, mode, initialItem: initialItem?.id || "null" })
+    
+    if (open && mode === "edit" && initialItem) {
+      console.log("🔄 CONFIGURANDO FORMULARIO PARA EDICIÓN:", initialItem)
+      setItem(initialItem)
+    } else if (open && mode === "add") {
+      console.log("🆕 RESETEANDO FORMULARIO PARA NUEVO ITEM")
+      resetForm()
+    }
+  }, [open, mode, initialItem, setItem, resetForm])
 
   const [planesDecenales] = useState([
     {
@@ -169,15 +203,24 @@ export function PlanAccionAddDialog({ open, onOpenChange, onSubmit, isSubmitting
   ])
 
   // Estados locales para los selectores del Plan Decenal
+  const [incluirPlanDecenal, setIncluirPlanDecenal] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState("")
   const [selectedMacroobjetivo, setSelectedMacroobjetivo] = useState("")
   const [selectedObjetivo, setSelectedObjetivo] = useState("")
   const [macroobjetivos, setMacroobjetivos] = useState<any[]>([])
   const [objetivos, setObjetivos] = useState<string[]>([])
 
+  // Estados locales para los selectores del PDM 2024-2027
+  const [incluirPDM, setIncluirPDM] = useState(false)
+  const [selectedProgramaPDM, setSelectedProgramaPDM] = useState("")
+  const [selectedSubprogramaPDM, setSelectedSubprogramaPDM] = useState("")
+  const [selectedProyectoPDM, setSelectedProyectoPDM] = useState("")
+  const [subprogramasPDM, setSubprogramasPDM] = useState<any[]>([])
+  const [proyectosPDM, setProyectosPDM] = useState<string[]>([])
+
   // Manejar cambios en el Plan Decenal
   useEffect(() => {
-    if (selectedPlan) {
+    if (incluirPlanDecenal && selectedPlan) {
       const plan = planesDecenales.find((p) => p.nombre === selectedPlan)
       if (plan) {
         setMacroobjetivos(plan.macroobjetivos)
@@ -194,11 +237,11 @@ export function PlanAccionAddDialog({ open, onOpenChange, onSubmit, isSubmitting
       setObjetivos([])
       updateField("metaDecenal", "")
     }
-  }, [selectedPlan, planesDecenales, updateField])
+  }, [incluirPlanDecenal, selectedPlan, planesDecenales, updateField])
 
   // Manejar cambios en el Macroobjetivo
   useEffect(() => {
-    if (selectedMacroobjetivo) {
+    if (incluirPlanDecenal && selectedMacroobjetivo) {
       const macroobjetivo = macroobjetivos.find((m) => m.nombre === selectedMacroobjetivo)
       if (macroobjetivo) {
         setObjetivos(macroobjetivo.objetivos)
@@ -211,26 +254,71 @@ export function PlanAccionAddDialog({ open, onOpenChange, onSubmit, isSubmitting
       setSelectedObjetivo("")
       updateField("macroobjetivoDecenal", "")
     }
-  }, [selectedMacroobjetivo, macroobjetivos, updateField])
+  }, [incluirPlanDecenal, selectedMacroobjetivo, macroobjetivos, updateField])
 
   // Manejar cambios en el Objetivo Decenal
   useEffect(() => {
-    if (selectedObjetivo) {
+    if (incluirPlanDecenal && selectedObjetivo) {
       updateField("objetivoDecenal", selectedObjetivo)
     } else {
       updateField("objetivoDecenal", "")
     }
-  }, [selectedObjetivo, updateField])
+  }, [incluirPlanDecenal, selectedObjetivo, updateField])
+
+  // Manejar cambios en el Programa PDM
+  useEffect(() => {
+    if (incluirPDM && selectedProgramaPDM) {
+      const subprogramas = getSubprogramasByPrograma(selectedProgramaPDM)
+      setSubprogramasPDM(subprogramas)
+      setSelectedSubprogramaPDM("")
+      setSelectedProyectoPDM("")
+      setProyectosPDM([])
+      // Actualizar el campo en el formulario
+      updateField("programaPDM", selectedProgramaPDM)
+    } else {
+      updateField("programaPDM", "")
+    }
+  }, [incluirPDM, selectedProgramaPDM, updateField])
+
+  // Manejar cambios en el Subprograma PDM
+  useEffect(() => {
+    if (incluirPDM && selectedProgramaPDM && selectedSubprogramaPDM) {
+      const proyectos = getProyectosBySubprograma(selectedProgramaPDM, selectedSubprogramaPDM)
+      setProyectosPDM(proyectos)
+      setSelectedProyectoPDM("")
+      // Actualizar el campo en el formulario
+      updateField("subprogramaPDM", selectedSubprogramaPDM)
+    } else {
+      updateField("subprogramaPDM", "")
+    }
+  }, [incluirPDM, selectedProgramaPDM, selectedSubprogramaPDM, updateField])
+
+  // Manejar cambios en el Proyecto PDM
+  useEffect(() => {
+    if (incluirPDM && selectedProyectoPDM) {
+      updateField("proyectoPDM", selectedProyectoPDM)
+    } else {
+      updateField("proyectoPDM", "")
+    }
+  }, [incluirPDM, selectedProyectoPDM, updateField])
 
   // Resetear formulario al cerrar
   useEffect(() => {
     if (!open) {
       resetForm()
+      setIncluirPlanDecenal(false)
       setSelectedPlan("")
       setSelectedMacroobjetivo("")
       setSelectedObjetivo("")
       setMacroobjetivos([])
       setObjetivos([])
+      // Reset PDM states
+      setIncluirPDM(false)
+      setSelectedProgramaPDM("")
+      setSelectedSubprogramaPDM("")
+      setSelectedProyectoPDM("")
+      setSubprogramasPDM([])
+      setProyectosPDM([])
     }
   }, [open, resetForm])
 
@@ -241,31 +329,66 @@ export function PlanAccionAddDialog({ open, onOpenChange, onSubmit, isSubmitting
 
   // Validar y enviar formulario
   const handleFormSubmit = () => {
-    // Validar campos del Plan Decenal
-    if (!selectedPlan) {
-      alert("Por favor seleccione un Plan Decenal")
-      return
+    // Validar campos del Plan Decenal solo si está habilitado
+    if (incluirPlanDecenal) {
+      if (!selectedPlan) {
+        alert("Por favor seleccione un Plan Decenal")
+        return
+      }
+
+      if (!selectedMacroobjetivo) {
+        alert("Por favor seleccione un Macroobjetivo")
+        return
+      }
+
+      if (!selectedObjetivo) {
+        alert("Por favor seleccione un Objetivo")
+        return
+      }
+
+      // Agregar los campos del Plan Decenal directamente al item antes de validar
+      updateField("metaDecenal", selectedPlan)
+      updateField("macroobjetivoDecenal", selectedMacroobjetivo)
+      updateField("objetivoDecenal", selectedObjetivo)
+    } else {
+      // Limpiar campos del Plan Decenal si no está habilitado
+      updateField("metaDecenal", "")
+      updateField("macroobjetivoDecenal", "")
+      updateField("objetivoDecenal", "")
     }
 
-    if (!selectedMacroobjetivo) {
-      alert("Por favor seleccione un Macroobjetivo")
-      return
-    }
+    // Validar campos del PDM solo si está habilitado
+    if (incluirPDM) {
+      if (!selectedProgramaPDM) {
+        alert("Por favor seleccione un Programa PDM")
+        return
+      }
 
-    if (!selectedObjetivo) {
-      alert("Por favor seleccione un Objetivo")
-      return
-    }
+      if (!selectedSubprogramaPDM) {
+        alert("Por favor seleccione un Subprograma PDM")
+        return
+      }
 
-    // Agregar los campos del Plan Decenal directamente al item antes de validar
-    updateField("metaDecenal", selectedPlan)
-    updateField("macroobjetivoDecenal", selectedMacroobjetivo)
-    updateField("objetivoDecenal", selectedObjetivo)
+      if (!selectedProyectoPDM) {
+        alert("Por favor seleccione un Proyecto/Actividad PDM")
+        return
+      }
+
+      // Agregar los campos del PDM directamente al item antes de validar
+      updateField("programaPDM", selectedProgramaPDM)
+      updateField("subprogramaPDM", selectedSubprogramaPDM)
+      updateField("proyectoPDM", selectedProyectoPDM)
+    } else {
+      // Limpiar campos del PDM si no está habilitado
+      updateField("programaPDM", "")
+      updateField("subprogramaPDM", "")
+      updateField("proyectoPDM", "")
+    }
 
     // Usar un setTimeout para asegurar que los campos se actualicen antes de enviar
     setTimeout(() => {
       if (validateForm()) {
-        console.log("Enviando datos completos con Plan Decenal:", item)
+        console.log("Enviando datos completos:", item)
         handleSubmit()
       }
     }, 100)
@@ -275,81 +398,12 @@ export function PlanAccionAddDialog({ open, onOpenChange, onSubmit, isSubmitting
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px]">
         <DialogHeader>
-          <DialogTitle>Añadir Nuevo Elemento</DialogTitle>
+          <DialogTitle>
+            {mode === "edit" ? "Editar Elemento" : "Añadir Nuevo Elemento"}
+          </DialogTitle>
         </DialogHeader>
         <ScrollArea className="h-[calc(100vh-200px)]">
           <div className="grid gap-8 py-8 md:grid-cols-2 px-4">
-            <div className="md:col-span-2">
-              <label htmlFor="planDecenal" className="block text-sm font-medium mb-1">
-                Plan Decenal <span className="text-red-500">*</span>
-              </label>
-              <select
-                id="planDecenal"
-                value={selectedPlan}
-                onChange={(e) => {
-                  console.log("Plan Decenal seleccionado:", e.target.value)
-                  setSelectedPlan(e.target.value)
-                }}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                aria-label="Seleccionar Plan Decenal"
-              >
-                <option value="">Seleccione un Plan Decenal</option>
-                {planesDecenales.map((plan) => (
-                  <option key={plan.nombre} value={plan.nombre}>
-                    {plan.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="md:col-span-2">
-              <label htmlFor="macroobjetivo" className="block text-sm font-medium mb-1">
-                Macroobjetivo <span className="text-red-500">*</span>
-              </label>
-              <select
-                id="macroobjetivo"
-                value={selectedMacroobjetivo}
-                onChange={(e) => {
-                  console.log("Macroobjetivo seleccionado:", e.target.value)
-                  setSelectedMacroobjetivo(e.target.value)
-                }}
-                disabled={!selectedPlan}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                aria-label="Seleccionar Macroobjetivo"
-              >
-                <option value="">Seleccione un Macroobjetivo</option>
-                {macroobjetivos.map((macro) => (
-                  <option key={macro.nombre} value={macro.nombre}>
-                    {macro.nombre.split("\n")[0]}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="md:col-span-2">
-              <label htmlFor="objetivo-especifico" className="block text-sm font-medium mb-1">
-                Objetivo Decenal <span className="text-red-500">*</span>
-              </label>
-              <select
-                id="objetivo-especifico"
-                value={selectedObjetivo}
-                onChange={(e) => {
-                  console.log("Objetivo Decenal seleccionado:", e.target.value)
-                  setSelectedObjetivo(e.target.value)
-                }}
-                disabled={!selectedMacroobjetivo}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                aria-label="Seleccionar Objetivo"
-              >
-                <option value="">Seleccione un Objetivo</option>
-                {objetivos.map((obj) => (
-                  <option key={obj} value={obj}>
-                    {obj}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             <div>
               <label htmlFor="programa" className="block text-sm font-medium mb-1">
                 Programa <span className="text-red-500">*</span>
@@ -548,23 +602,24 @@ export function PlanAccionAddDialog({ open, onOpenChange, onSubmit, isSubmitting
             </div>
             <div>
               <label htmlFor="fechaInicio" className="block text-sm font-medium mb-1">
-                Fecha Inicio <span className="text-red-500">*</span>
+                Fecha de inicio <span className="text-red-500">*</span>
               </label>
-              <DatePicker
-                value={fechaInicioDate}
-                onChange={(date) => {
-                  if (date) {
+              <input
+                type="date"
+                id="fechaInicio"
+                value={formatDateForInput(fechaInicioDate)}
+                onChange={(e) => {
+                  const value = e.target.value
+                  if (value) {
+                    const date = new Date(value)
                     setFechaInicioDate(date)
-                    updateField(
-                      "fechaInicio",
-                      date
-                        .toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })
-                        .replace(/\//g, "/"),
-                    )
+                    updateField("fechaInicio", value)
+                  } else {
+                    setFechaInicioDate(null)
+                    updateField("fechaInicio", "")
                   }
                 }}
-                error={errors.fechaInicio}
-                placeholder="Seleccionar fecha de inicio"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 aria-label="Fecha de inicio"
                 aria-describedby={errors.fechaInicio ? "fechaInicio-error" : undefined}
               />
@@ -577,24 +632,25 @@ export function PlanAccionAddDialog({ open, onOpenChange, onSubmit, isSubmitting
             </div>
             <div>
               <label htmlFor="fechaFin" className="block text-sm font-medium mb-1">
-                Fecha Fin <span className="text-red-500">*</span>
+                Fecha de fin <span className="text-red-500">*</span>
               </label>
-              <DatePicker
-                value={fechaFinDate}
-                onChange={(date) => {
-                  if (date) {
+              <input
+                type="date"
+                id="fechaFin"
+                value={formatDateForInput(fechaFinDate)}
+                onChange={(e) => {
+                  const value = e.target.value
+                  if (value) {
+                    const date = new Date(value)
                     setFechaFinDate(date)
-                    updateField(
-                      "fechaFin",
-                      date
-                        .toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })
-                        .replace(/\//g, "/"),
-                    )
+                    updateField("fechaFin", value)
+                  } else {
+                    setFechaFinDate(null)
+                    updateField("fechaFin", "")
                   }
                 }}
-                minDate={fechaInicioDate || undefined}
-                error={errors.fechaFin}
-                placeholder="Seleccionar fecha de fin"
+                min={formatDateForInput(fechaInicioDate)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 aria-label="Fecha de fin"
                 aria-describedby={errors.fechaFin ? "fechaFin-error" : undefined}
               />
@@ -605,6 +661,206 @@ export function PlanAccionAddDialog({ open, onOpenChange, onSubmit, isSubmitting
                 </p>
               )}
             </div>
+
+            {/* Checkbox para Plan Decenal */}
+            <div className="md:col-span-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="incluir-plan-decenal"
+                  checked={incluirPlanDecenal}
+                  onCheckedChange={(checked) => {
+                    setIncluirPlanDecenal(checked as boolean)
+                    if (!checked) {
+                      setSelectedPlan("")
+                      setSelectedMacroobjetivo("")
+                      setSelectedObjetivo("")
+                    }
+                  }}
+                />
+                <label
+                  htmlFor="incluir-plan-decenal"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  ¿Quieres agregar plan decenal?
+                </label>
+              </div>
+            </div>
+
+            {/* Selectores del Plan Decenal - Solo se muestran si el checkbox está marcado */}
+            {incluirPlanDecenal && (
+              <>
+                <div className="md:col-span-2">
+                  <label htmlFor="planDecenal" className="block text-sm font-medium mb-1">
+                    Plan Decenal <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="planDecenal"
+                    value={selectedPlan}
+                    onChange={(e) => {
+                      console.log("Plan Decenal seleccionado:", e.target.value)
+                      setSelectedPlan(e.target.value)
+                    }}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    aria-label="Seleccionar Plan Decenal"
+                  >
+                    <option value="">Seleccione un Plan Decenal</option>
+                    {planesDecenales.map((plan) => (
+                      <option key={plan.nombre} value={plan.nombre}>
+                        {plan.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label htmlFor="macroobjetivo" className="block text-sm font-medium mb-1">
+                    Macroobjetivo <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="macroobjetivo"
+                    value={selectedMacroobjetivo}
+                    onChange={(e) => {
+                      console.log("Macroobjetivo seleccionado:", e.target.value)
+                      setSelectedMacroobjetivo(e.target.value)
+                    }}
+                    disabled={!selectedPlan}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    aria-label="Seleccionar Macroobjetivo"
+                  >
+                    <option value="">Seleccione un Macroobjetivo</option>
+                    {macroobjetivos.map((macro) => (
+                      <option key={macro.nombre} value={macro.nombre}>
+                        {macro.nombre.split("\n")[0]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label htmlFor="objetivo-especifico" className="block text-sm font-medium mb-1">
+                    Objetivo Decenal <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="objetivo-especifico"
+                    value={selectedObjetivo}
+                    onChange={(e) => {
+                      console.log("Objetivo Decenal seleccionado:", e.target.value)
+                      setSelectedObjetivo(e.target.value)
+                    }}
+                    disabled={!selectedMacroobjetivo}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    aria-label="Seleccionar Objetivo"
+                  >
+                    <option value="">Seleccione un Objetivo</option>
+                    {objetivos.map((obj) => (
+                      <option key={obj} value={obj}>
+                        {obj}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            {/* Checkbox para Plan de Desarrollo Municipal (PDM) */}
+            <div className="md:col-span-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="incluir-pdm"
+                  checked={incluirPDM}
+                  onCheckedChange={(checked) => {
+                    setIncluirPDM(checked as boolean)
+                    if (!checked) {
+                      setSelectedProgramaPDM("")
+                      setSelectedSubprogramaPDM("")
+                      setSelectedProyectoPDM("")
+                    }
+                  }}
+                />
+                <label
+                  htmlFor="incluir-pdm"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  ¿Quieres agregar Plan de Desarrollo Municipal (PDM) 2024-2027?
+                </label>
+              </div>
+            </div>
+
+            {/* Selectores del PDM - Solo se muestran si el checkbox está marcado */}
+            {incluirPDM && (
+              <>
+                <div className="md:col-span-2">
+                  <label htmlFor="programaPDM" className="block text-sm font-medium mb-1">
+                    Programa PDM <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="programaPDM"
+                    value={selectedProgramaPDM}
+                    onChange={(e) => {
+                      console.log("Programa PDM seleccionado:", e.target.value)
+                      setSelectedProgramaPDM(e.target.value)
+                    }}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    aria-label="Seleccionar Programa PDM"
+                  >
+                    <option value="">Seleccione un Programa PDM</option>
+                    {planesDesarrolloMunicipal.map((programa) => (
+                      <option key={programa.nombre} value={programa.nombre}>
+                        {programa.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label htmlFor="subprogramaPDM" className="block text-sm font-medium mb-1">
+                    Subprograma PDM <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="subprogramaPDM"
+                    value={selectedSubprogramaPDM}
+                    onChange={(e) => {
+                      console.log("Subprograma PDM seleccionado:", e.target.value)
+                      setSelectedSubprogramaPDM(e.target.value)
+                    }}
+                    disabled={!selectedProgramaPDM}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    aria-label="Seleccionar Subprograma PDM"
+                  >
+                    <option value="">Seleccione un Subprograma PDM</option>
+                    {subprogramasPDM.map((subprograma) => (
+                      <option key={subprograma.nombre} value={subprograma.nombre}>
+                        {subprograma.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label htmlFor="proyectoPDM" className="block text-sm font-medium mb-1">
+                    Proyecto/Actividad PDM <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="proyectoPDM"
+                    value={selectedProyectoPDM}
+                    onChange={(e) => {
+                      console.log("Proyecto PDM seleccionado:", e.target.value)
+                      setSelectedProyectoPDM(e.target.value)
+                    }}
+                    disabled={!selectedSubprogramaPDM}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    aria-label="Seleccionar Proyecto PDM"
+                  >
+                    <option value="">Seleccione un Proyecto/Actividad PDM</option>
+                    {proyectosPDM.map((proyecto) => (
+                      <option key={proyecto} value={proyecto}>
+                        {proyecto}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
           </div>
         </ScrollArea>
         <DialogFooter>
@@ -694,7 +950,7 @@ export function PlanAccionAddDialog({ open, onOpenChange, onSubmit, isSubmitting
             ) : (
               <>
                 <Save className="mr-2 h-4 w-4" />
-                Guardar
+                {mode === "edit" ? "Actualizar" : "Guardar"}
               </>
             )}
           </Button>

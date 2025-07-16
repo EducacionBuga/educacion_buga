@@ -3,7 +3,8 @@
 import { useState, useCallback } from "react"
 import { RoleGuard } from "@/components/auth/role-guard"
 import { ModuleHeader } from "@/components/dashboard/module-header"
-import PlanAccionArea, { type PlanAccionItem } from "@/components/modules/plan-accion-area"
+import PlanAccionAreaMejorado from "@/components/modules/plan-accion-area-mejorado"
+import type { PlanAccionItem } from "@/types/plan-accion"
 
 export default function PlanAccionAreaPage() {
   const [planAccionItems, setPlanAccionItems] = useState<PlanAccionItem[]>([])
@@ -29,12 +30,12 @@ export default function PlanAccionAreaPage() {
 
   return (
     <RoleGuard allowedRoles={["ADMIN", "CALIDAD_EDUCATIVA"]}>
-      <main className="min-h-screen">
-        <ModuleHeader title="PLAN DE ACCIÓN POR ÁREA" />
-        <div className="container mx-auto">
-          <PlanAccionArea
-            title="Plan de acción por área"
-            description="Gestión de planes de acción por área educativa"
+      <main className="min-h-screen bg-gray-50">
+        <ModuleHeader title="PLAN DE ACCIÓN - CALIDAD EDUCATIVA" />
+        <div className="container mx-auto p-4 md:p-8">
+          <PlanAccionAreaMejorado
+            title="Plan de Acción - Calidad Educativa"
+            description="Gestión de planes de acción del área de calidad educativa"
             area="Calidad Educativa"
             color="orange"
             initialItems={planAccionItems}

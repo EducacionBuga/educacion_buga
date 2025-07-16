@@ -179,7 +179,10 @@ export function usePlanAccionService(areaSlug: string) {
           comentarios,
           meta_docenal,
           macroobjetivo_docenal,
-          objetivo_docenal
+          objetivo_docenal,
+          programa_pdm,
+          subprograma_pdm,
+          proyecto_pdm
         `)
         .eq("area_id", areaId)
         .order("created_at", { ascending: false })
@@ -211,6 +214,10 @@ export function usePlanAccionService(areaSlug: string) {
         metaDecenal: item.meta_docenal || "",
         macroobjetivoDecenal: item.macroobjetivo_docenal || "",
         objetivoDecenal: item.objetivo_docenal || "",
+        // Mapear campos del PDM de snake_case a camelCase
+        programaPDM: item.programa_pdm || "",
+        subprogramaPDM: item.subprograma_pdm || "",
+        proyectoPDM: item.proyecto_pdm || "",
       }))
 
       setItems(formattedItems)
@@ -292,6 +299,10 @@ export function usePlanAccionService(areaSlug: string) {
           meta_docenal: newItem.metaDecenal || null,
           macroobjetivo_docenal: newItem.macroobjetivoDecenal || null,
           objetivo_docenal: newItem.objetivoDecenal || null,
+          // CAMPOS DEL PDM 2024-2027 - Mapear de camelCase a snake_case
+          programa_pdm: newItem.programaPDM || null,
+          subprograma_pdm: newItem.subprogramaPDM || null,
+          proyecto_pdm: newItem.proyectoPDM || null,
         }
 
         console.log("🔍 DATOS PREPARADOS PARA INSERCIÓN EN SUPABASE:", insertData)
@@ -299,6 +310,10 @@ export function usePlanAccionService(areaSlug: string) {
         console.log("   meta_docenal:", insertData.meta_docenal)
         console.log("   macroobjetivo_docenal:", insertData.macroobjetivo_docenal)
         console.log("   objetivo_docenal:", insertData.objetivo_docenal)
+        console.log("🏛️ VERIFICACIÓN CAMPOS PDM 2024-2027:")
+        console.log("   programa_pdm:", insertData.programa_pdm)
+        console.log("   subprograma_pdm:", insertData.subprograma_pdm)
+        console.log("   proyecto_pdm:", insertData.proyecto_pdm)
         console.log("   usuario_id:", insertData.usuario_id)
 
         // Insertar en Supabase
@@ -364,6 +379,10 @@ export function usePlanAccionService(areaSlug: string) {
         if (updatedItem.metaDecenal !== undefined) updateData.meta_docenal = updatedItem.metaDecenal
         if (updatedItem.macroobjetivoDecenal !== undefined) updateData.macroobjetivo_docenal = updatedItem.macroobjetivoDecenal
         if (updatedItem.objetivoDecenal !== undefined) updateData.objetivo_docenal = updatedItem.objetivoDecenal
+        // Mapear campos del PDM de camelCase a snake_case
+        if (updatedItem.programaPDM !== undefined) updateData.programa_pdm = updatedItem.programaPDM
+        if (updatedItem.subprogramaPDM !== undefined) updateData.subprograma_pdm = updatedItem.subprogramaPDM
+        if (updatedItem.proyectoPDM !== undefined) updateData.proyecto_pdm = updatedItem.proyectoPDM
 
         // Actualizar en Supabase
         const { data, error } = await supabase.from("plan_accion").update(updateData).eq("id", id).select().single()

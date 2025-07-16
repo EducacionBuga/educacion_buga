@@ -24,6 +24,10 @@ export interface MatrizSeguimientoItem {
   metaDecenal?: string
   macroobjetivoDecenal?: string
   objetivoDecenal?: string
+  // Campos del PDM
+  programaPDM?: string
+  subprogramaPDM?: string
+  proyectoPDM?: string
   validacion?: PlanValidacion
 }
 
@@ -74,15 +78,17 @@ export const useMatrizSeguimiento = () => {
     setIsLoading(true)
 
     try {
-      console.log("Cargando datos para matriz de seguimiento...")
+      console.log("🔄 Iniciando carga de datos para matriz de seguimiento...")
 
       // Obtener todas las áreas de la base de datos
       const { data: areasData, error: areasError } = await supabase.from("areas").select("id, codigo, nombre")
 
       if (areasError) {
-        console.error("Error cargando áreas:", areasError)
+        console.error("❌ Error cargando áreas:", areasError)
         throw areasError
       }
+
+      console.log("✅ Áreas cargadas:", areasData?.length || 0)
 
       // Mapear áreas de la base de datos
       const areasMap = new Map()
@@ -119,6 +125,10 @@ export const useMatrizSeguimiento = () => {
     meta_docenal,
     macroobjetivo_docenal,
     objetivo_docenal,
+    incluir_pdm,
+    programa_pdm,
+    subprograma_pdm,
+    proyecto_pdm,
     created_at,
     updated_at
   `)
@@ -145,7 +155,7 @@ export const useMatrizSeguimiento = () => {
         validacionesMap.set(validacion.plan_id, validacion)
       })
 
-      console.log(`Encontrados ${planesData?.length || 0} planes de acción en total`)
+      console.log(`✅ Encontrados ${planesData?.length || 0} planes de acción en total`)
 
       // Transformar los datos para la matriz
       const combinedData: MatrizSeguimientoItem[] = []
@@ -184,15 +194,21 @@ export const useMatrizSeguimiento = () => {
           metaDecenal: plan.meta_docenal || "",
           macroobjetivoDecenal: plan.macroobjetivo_docenal || "",
           objetivoDecenal: plan.objetivo_docenal || "",
+          // Mapear campos del PDM desde la base de datos (corregido)
+          programaPDM: plan.programa_pdm || "",
+          subprogramaPDM: plan.subprograma_pdm || "",
+          proyectoPDM: plan.proyecto_pdm || "",
         })
       })
 
+      console.log("✅ Datos transformados para matriz:", combinedData.length, "elementos")
       setData(combinedData)
-      console.log("Datos de matriz de seguimiento cargados correctamente")
+      console.log("✅ Datos de matriz de seguimiento cargados correctamente")
     } catch (error) {
-      console.error("Error loading matriz de seguimiento data:", error)
+      console.error("❌ Error loading matriz de seguimiento data:", error)
       setData([])
     } finally {
+      console.log("🏁 Finalizando carga de matriz de seguimiento")
       setIsLoading(false)
     }
   }, [supabase])

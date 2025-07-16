@@ -33,6 +33,10 @@ const initialState: PlanAccionFormState = {
     metaDecenal: "",
     macroobjetivoDecenal: "",
     objetivoDecenal: "",
+    // Agregar campos del PDM
+    programaPDM: "",
+    subprogramaPDM: "",
+    proyectoPDM: "",
   },
   errors: {},
   fechaInicioDate: null,
@@ -85,8 +89,28 @@ function formReducer(state: PlanAccionFormState, action: PlanAccionFormAction): 
           objetivoDecenal: action.payload.objetivoDecenal || "",
         },
       }
+    case "SET_PLAN_PDM":
+      console.log("Actualizando campos del PDM 2024-2027:", action.payload)
+      return {
+        ...state,
+        item: {
+          ...state.item,
+          programaPDM: action.payload.programaPDM || "",
+          subprogramaPDM: action.payload.subprogramaPDM || "",
+          proyectoPDM: action.payload.proyectoPDM || "",
+        },
+      }
     case "RESET":
       return initialState
+    case "SET_ITEM":
+      const item = action.payload
+      return {
+        ...state,
+        item: { ...item },
+        fechaInicioDate: item.fechaInicio ? new Date(item.fechaInicio) : null,
+        fechaFinDate: item.fechaFin ? new Date(item.fechaFin) : null,
+        errors: {},
+      }
     case "SET_ERRORS":
       return {
         ...state,
@@ -133,6 +157,21 @@ export function usePlanAccionForm(onSubmit: (item: PlanAccionItem) => void) {
           metaDecenal,
           macroobjetivoDecenal,
           objetivoDecenal,
+        },
+      })
+    },
+    [],
+  )
+
+  // Función para actualizar los campos del PDM 2024-2027
+  const updatePlanPDM = useCallback(
+    (programaPDM: string, subprogramaPDM: string, proyectoPDM: string) => {
+      dispatch({
+        type: "SET_PLAN_PDM",
+        payload: {
+          programaPDM,
+          subprogramaPDM,
+          proyectoPDM,
         },
       })
     },
@@ -226,17 +265,22 @@ export function usePlanAccionForm(onSubmit: (item: PlanAccionItem) => void) {
       }
     }
 
-    // Validar campos del Plan Decenal
-    if (!item.metaDecenal) {
-      errors.metaDecenal = "El Plan Decenal es obligatorio"
-    }
-
-    if (!item.macroobjetivoDecenal) {
+    // Validar campos del Plan Decenal (solo si están completos, indicando que se seleccionó)
+    if (item.metaDecenal && !item.macroobjetivoDecenal) {
       errors.macroobjetivoDecenal = "El Macroobjetivo es obligatorio"
     }
 
-    if (!item.objetivoDecenal) {
+    if (item.metaDecenal && !item.objetivoDecenal) {
       errors.objetivoDecenal = "El Objetivo Decenal es obligatorio"
+    }
+
+    // Validar campos del PDM (solo si están completos, indicando que se seleccionó)
+    if (item.programaPDM && !item.subprogramaPDM) {
+      errors.subprogramaPDM = "El Subprograma PDM es obligatorio"
+    }
+
+    if (item.programaPDM && !item.proyectoPDM) {
+      errors.proyectoPDM = "El Proyecto/Actividad PDM es obligatorio"
     }
 
     dispatch({ type: "SET_ERRORS", payload: errors })
@@ -250,6 +294,10 @@ export function usePlanAccionForm(onSubmit: (item: PlanAccionItem) => void) {
     console.log("metaDecenal:", state.item.metaDecenal)
     console.log("macroobjetivoDecenal:", state.item.macroobjetivoDecenal)
     console.log("objetivoDecenal:", state.item.objetivoDecenal)
+    console.log("🏛️ VERIFICANDO CAMPOS DEL PDM 2024-2027 EN HANDLESUBMIT:")
+    console.log("programaPDM:", state.item.programaPDM)
+    console.log("subprogramaPDM:", state.item.subprogramaPDM)
+    console.log("proyectoPDM:", state.item.proyectoPDM)
     
     if (validateForm()) {
       console.log("✅ Formulario válido, enviando datos:", state.item)
@@ -265,6 +313,11 @@ export function usePlanAccionForm(onSubmit: (item: PlanAccionItem) => void) {
     dispatch({ type: "RESET" })
   }, [])
 
+  // Función para establecer un item para edición
+  const setItem = useCallback((item: PlanAccionItem) => {
+    dispatch({ type: "SET_ITEM", payload: item })
+  }, [])
+
   return {
     item: state.item,
     errors: state.errors,
@@ -272,10 +325,12 @@ export function usePlanAccionForm(onSubmit: (item: PlanAccionItem) => void) {
     fechaFinDate: state.fechaFinDate,
     updateField,
     updatePlanDecenal,
+    updatePlanPDM,
     setFechaInicioDate,
     setFechaFinDate,
     validateForm,
     handleSubmit,
     resetForm,
+    setItem,
   }
 }

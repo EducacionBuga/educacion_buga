@@ -228,6 +228,42 @@ export function PlanAccionRow({ item, onEdit, onDelete }: PlanAccionRowProps) {
         )}
       </TableCell>
       <TableCell>{renderStatusBadge(item.estado)}</TableCell>
+      <TableCell>
+        {isEditing ? (
+          <Input
+            value={editValues.programaPDM || ""}
+            onChange={(e) => handleEditChange("programaPDM", e.target.value)}
+            className="w-full"
+            aria-label="Programa PDM 2024-2027"
+          />
+        ) : (
+          item.programaPDM || "N/A"
+        )}
+      </TableCell>
+      <TableCell>
+        {isEditing ? (
+          <Input
+            value={editValues.subprogramaPDM || ""}
+            onChange={(e) => handleEditChange("subprogramaPDM", e.target.value)}
+            className="w-full"
+            aria-label="Subprograma PDM 2024-2027"
+          />
+        ) : (
+          item.subprogramaPDM || "N/A"
+        )}
+      </TableCell>
+      <TableCell>
+        {isEditing ? (
+          <Input
+            value={editValues.proyectoPDM || ""}
+            onChange={(e) => handleEditChange("proyectoPDM", e.target.value)}
+            className="w-full"
+            aria-label="Proyecto/Actividad PDM"
+          />
+        ) : (
+          item.proyectoPDM || "N/A"
+        )}
+      </TableCell>
       <TableCell className="text-right">
         {isEditing ? (
           <div className="flex justify-end gap-2">

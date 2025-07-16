@@ -25,6 +25,10 @@ export interface PlanAccionItem {
   metaDecenal: string
   macroobjetivoDecenal: string
   objetivoDecenal: string
+  // Campos del Plan de Desarrollo Municipal (PDM)
+  programaPDM: string
+  subprogramaPDM: string
+  proyectoPDM: string
 }
 
 export interface PlanAccionFormErrors {
@@ -45,6 +49,11 @@ export type PlanAccionFormAction =
       type: "SET_PLAN_DECENAL"
       payload: { metaDecenal: string; macroobjetivoDecenal: string; objetivoDecenal: string }
     }
+  | {
+      type: "SET_PLAN_PDM"
+      payload: { programaPDM: string; subprogramaPDM: string; proyectoPDM: string }
+    }
   | { type: "RESET" }
+  | { type: "SET_ITEM"; payload: PlanAccionItem }
   | { type: "SET_ERRORS"; payload: PlanAccionFormErrors }
   | { type: "CLEAR_ERROR"; field: string }

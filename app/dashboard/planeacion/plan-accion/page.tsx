@@ -3,12 +3,14 @@
 import { ModuleHeader } from "@/components/dashboard/module-header"
 import { RoleGuard } from "@/components/auth/role-guard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FileText, Download, Plus, Upload } from "lucide-react"
+import { FileText, Download, Plus, Upload, LayoutGrid, TableIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect } from "react"
 import { toast } from "@/components/ui/use-toast"
 import { PlanAccionImportExport } from "@/components/plan-accion/plan-accion-import-export"
+import { PlanAccionMejorado } from "@/components/plan-accion/plan-accion-mejorado"
 import { usePlanAccionService } from "@/hooks/use-plan-accion-service"
+import { usePlanAccionImportExport } from "@/hooks/use-plan-accion-import-export"
 import type { PlanAccionItem } from "@/types/plan-accion"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -16,6 +18,10 @@ export default function PlanAccionPage() {
   const [isDownloading, setIsDownloading] = useState(false)
   const [planAccionItems, setPlanAccionItems] = useState<PlanAccionItem[]>([])
   const [activeTab, setActiveTab] = useState("view")
+  const [viewMode, setViewMode] = useState<"table" | "cards">("cards")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [estadoFilter, setEstadoFilter] = useState("todos")
+  
   // Hook para manejar el plan de acción (usando slug genérico para planeación)
   const { 
     isLoading, 
@@ -23,6 +29,29 @@ export default function PlanAccionPage() {
     loadPlanesAccion, 
     addPlanAccion 
   } = usePlanAccionService("planeacion")
+
+  // Hook para importación/exportación de Excel
+  const { exportToExcel, isExporting } = usePlanAccionImportExport()
+
+  // Filtrar datos según los criterios
+  const filteredData = planAccionItems.filter((item) => {
+    // Filtro de búsqueda
+    const matchesSearch =
+      searchTerm === "" ||
+      (item.programa?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+      (item.objetivo?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+      (item.responsable?.toLowerCase() || "").includes(searchTerm.toLowerCase())
+
+    // Filtro de estado
+    const matchesEstado = estadoFilter === "todos" || item.estado === estadoFilter
+
+    return matchesSearch && matchesEstado
+  })
+
+  const handleClearFilters = () => {
+    setSearchTerm("")
+    setEstadoFilter("todos")
+  }
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -35,37 +64,26 @@ export default function PlanAccionPage() {
     })
   }, [loadPlanesAccion])
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     setIsDownloading(true)
 
     try {
-      // Crear URL para el blob
-      const url = "/plan-accion-2025.xlsx"
-
-      // Crear un enlace para descargar
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `Plan_de_Accion_2025.xlsx`
-      document.body.appendChild(a)
-      a.click()
-
-      // Limpiar
-      setTimeout(() => {
-        document.body.removeChild(a)
-        setIsDownloading(false)
-        toast({
-          title: "Descarga iniciada",
-          description: "El Plan de Acción se está descargando",
-        })
-      }, 100)
+      // Usar la función de exportar a Excel del hook
+      await exportToExcel(filteredData, `plan-accion-${new Date().toISOString().split('T')[0]}.xlsx`)
+      
+      toast({
+        title: "Exportación exitosa",
+        description: "El Plan de Acción se ha exportado a Excel correctamente",
+      })
     } catch (error) {
-      console.error("Error al descargar:", error)
-      setIsDownloading(false)
+      console.error("Error al exportar:", error)
       toast({
         title: "Error",
-        description: "Ocurrió un error al descargar el documento",
+        description: "Ocurrió un error al exportar el documento",
         variant: "destructive",
       })
+    } finally {
+      setIsDownloading(false)
     }
   }
 
@@ -115,143 +133,254 @@ export default function PlanAccionPage() {
             </TabsList>
 
             <TabsContent value="view" className="mt-6">
-              {/* Barra de herramientas superior */}
-              <Card className="mb-6">
+              {/* Header mejorado estilo matriz */}
+              <Card className="mb-6 border-l-4 border-l-primary">
                 <CardContent className="p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div className="flex items-center">
-                      <FileText className="mr-3 h-6 w-6 text-primary" />
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                        <FileText className="h-6 w-6 text-primary" />
+                      </div>
                       <div>
-                        <h2 className="text-xl font-bold text-gray-900">Plan de Acción Municipal 2025</h2>
-                        <p className="text-sm text-gray-600">Secretaría de Educación de Guadalajara de Buga</p>
+                        <h2 className="text-2xl font-bold text-gray-900">Plan de Acción Municipal 2025</h2>
+                        <p className="text-sm text-gray-600 mt-1">Secretaría de Educación de Guadalajara de Buga</p>
                       </div>
                     </div>
                     
-                    <Button 
-                      onClick={() => setActiveTab("manage")}
-                      className="flex items-center justify-center h-10 px-4"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Gestionar Importación/Exportación
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant={viewMode === "cards" ? "default" : "outline"}
+                        onClick={() => setViewMode("cards")}
+                        className={`flex items-center gap-2 ${
+                          viewMode === "cards" ? "text-white" : "text-gray-900"
+                        }`}
+                      >
+                        <LayoutGrid className="h-4 w-4" />
+                        Vista Tarjetas
+                      </Button>
+                      <Button
+                        variant={viewMode === "table" ? "default" : "outline"}
+                        onClick={() => setViewMode("table")}
+                        className={`flex items-center gap-2 ${
+                          viewMode === "table" ? "text-white" : "text-gray-900"
+                        }`}
+                      >
+                        <TableIcon className="h-4 w-4" />
+                        Vista Tabla
+                      </Button>
+                      <Button 
+                        onClick={handleDownload}
+                        disabled={isDownloading || isExporting || filteredData.length === 0}
+                        className="flex items-center justify-center h-10 px-4 bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        {isDownloading || isExporting ? "Exportando..." : "Exportar"}
+                      </Button>
+                      <Button 
+                        onClick={() => setActiveTab("manage")}
+                        className="flex items-center justify-center h-10 px-4"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Gestionar
+                      </Button>
+                    </div>
                   </div>
 
-                  {/* Estadísticas rápidas */}
-                  <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-blue-600">Total Actividades</p>
-                          <p className="text-2xl font-bold text-blue-900">{planAccionItems.length}</p>
+                  {/* Estadísticas del Plan de Acción - Estilo Matriz */}
+                  <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-blue-700">Total Actividades</p>
+                            <p className="text-2xl font-bold text-blue-900">{filteredData.length}</p>
+                          </div>
+                          <div className="h-12 w-12 bg-blue-200 rounded-full flex items-center justify-center">
+                            <FileText className="h-6 w-6 text-blue-700" />
+                          </div>
                         </div>
-                        <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <FileText className="h-5 w-5 text-blue-600" />
-                        </div>
-                      </div>
-                    </div>
+                      </CardContent>
+                    </Card>
 
-                    <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-green-600">En Progreso</p>
-                          <p className="text-2xl font-bold text-green-900">
-                            {planAccionItems.filter(item => item.estado === "En progreso" || item.estado === "En Proceso").length}
-                          </p>
+                    <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-green-700">Completadas</p>
+                            <p className="text-2xl font-bold text-green-900">
+                              {filteredData.filter(item => item.estado === "Completado").length}
+                            </p>
+                          </div>
+                          <div className="h-12 w-12 bg-green-200 rounded-full flex items-center justify-center">
+                            <Plus className="h-6 w-6 text-green-700" />
+                          </div>
                         </div>
-                        <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center">
-                          <Plus className="h-5 w-5 text-green-600" />
-                        </div>
-                      </div>
-                    </div>
+                      </CardContent>
+                    </Card>
 
-                    <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-orange-600">Sin Iniciar</p>
-                          <p className="text-2xl font-bold text-orange-900">
-                            {planAccionItems.filter(item => item.estado === "Sin iniciar").length}
-                          </p>
+                    <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-amber-700">En Progreso</p>
+                            <p className="text-2xl font-bold text-amber-900">
+                              {filteredData.filter(item => item.estado === "En progreso" || item.estado === "En Progreso").length}
+                            </p>
+                          </div>
+                          <div className="h-12 w-12 bg-amber-200 rounded-full flex items-center justify-center">
+                            <FileText className="h-6 w-6 text-amber-700" />
+                          </div>
                         </div>
-                        <div className="h-10 w-10 bg-orange-100 rounded-full flex items-center justify-center">
-                          <FileText className="h-5 w-5 text-orange-600" />
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-purple-700">Avance Promedio</p>
+                            <p className="text-2xl font-bold text-purple-900">
+                              {filteredData.length > 0 
+                                ? Math.round(filteredData.reduce((sum, item) => sum + (item.porcentajeAvance || 0), 0) / filteredData.length)
+                                : 0}%
+                            </p>
+                          </div>
+                          <div className="h-12 w-12 bg-purple-200 rounded-full flex items-center justify-center">
+                            <FileText className="h-6 w-6 text-purple-700" />
+                          </div>
                         </div>
-                      </div>
-                    </div>
+                      </CardContent>
+                    </Card>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Tabla del plan de acción */}
-              <Card className="mb-8">
-                <CardHeader className="bg-primary/5">
-                  <CardTitle className="flex items-center">
-                    <FileText className="mr-2 h-5 w-5 text-primary" />
-                    Actividades del Plan de Acción
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0 overflow-auto">
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse text-sm">
-                      <thead>
-                        <tr className="bg-gray-100 text-left">
-                          <th className="border border-gray-300 px-3 py-2 font-medium">N°</th>
-                          <th className="border border-gray-300 px-3 py-2 font-medium">Meta de Producto PDM 2024-2027</th>
-                          <th className="border border-gray-300 px-3 py-2 font-medium">Actividad a Realizar</th>
-                          <th className="border border-gray-300 px-3 py-2 font-medium">Proceso / Estrategia</th>
-                          <th className="border border-gray-300 px-3 py-2 font-medium">Presupuesto Disponible</th>
-                          <th className="border border-gray-300 px-3 py-2 font-medium">Presupuesto Ejecutado</th>
-                          <th className="border border-gray-300 px-3 py-2 font-medium">Porcentaje de Avance</th>
-                          <th className="border border-gray-300 px-3 py-2 font-medium">Recursos Necesarios</th>
-                          <th className="border border-gray-300 px-3 py-2 font-medium">Indicador de Gestión</th>
-                          <th className="border border-gray-300 px-3 py-2 font-medium">Unidad de Medida</th>
-                          <th className="border border-gray-300 px-3 py-2 font-medium">Fórmula del Indicador</th>
-                          <th className="border border-gray-300 px-3 py-2 font-medium">Período Propuesto</th>
-                          <th className="border border-gray-300 px-3 py-2 font-medium">Fecha de Inicio</th>
-                          <th className="border border-gray-300 px-3 py-2 font-medium">Fecha de Finalización</th>
-                          <th className="border border-gray-300 px-3 py-2 font-medium">Responsable</th>
-                          <th className="border border-gray-300 px-3 py-2 font-medium">Estado</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {planAccionItems.length > 0 ? (
-                          planAccionItems.slice(0, 10).map((item, index) => (
-                            <tr key={item.id}>
-                              <td className="border border-gray-300 px-3 py-2">{index + 1}</td>
-                              <td className="border border-gray-300 px-3 py-2">{item.programa}</td>
-                              <td className="border border-gray-300 px-3 py-2">{item.objetivo}</td>
-                              <td className="border border-gray-300 px-3 py-2">{item.meta}</td>
-                              <td className="border border-gray-300 px-3 py-2">{item.presupuesto}</td>
-                              <td className="border border-gray-300 px-3 py-2">{item.acciones}</td>
-                              <td className="border border-gray-300 px-3 py-2">{item.porcentajeAvance}%</td>
-                              <td className="border border-gray-300 px-3 py-2">{item.indicadores}</td>
-                              <td className="border border-gray-300 px-3 py-2">{item.indicadores}</td>
-                              <td className="border border-gray-300 px-3 py-2">{item.metaDecenal}</td>
-                              <td className="border border-gray-300 px-3 py-2">{item.macroobjetivoDecenal}</td>
-                              <td className="border border-gray-300 px-3 py-2">{item.objetivoDecenal}</td>
-                              <td className="border border-gray-300 px-3 py-2">{item.fechaInicio}</td>
-                              <td className="border border-gray-300 px-3 py-2">{item.fechaFin}</td>
-                              <td className="border border-gray-300 px-3 py-2">{item.responsable}</td>
-                              <td className="border border-gray-300 px-3 py-2">{item.estado}</td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={16} className="border border-gray-300 px-3 py-8 text-center text-gray-500">
-                              {isLoading ? "Cargando datos..." : "No hay datos del plan de acción. Use la pestaña 'Gestionar Datos' para importar información."}
-                            </td>
+              {/* Vista mejorada de tarjetas */}
+              {viewMode === "cards" ? (
+                <PlanAccionMejorado
+                  data={filteredData}
+                  isLoading={isLoading}
+                  isError={!!error}
+                  error={error}
+                  searchTerm={searchTerm}
+                  setSearchTerm={setSearchTerm}
+                  estadoFilter={estadoFilter}
+                  setEstadoFilter={setEstadoFilter}
+                  handleClearFilters={handleClearFilters}
+                  onItemUpdate={async (updatedItem) => {
+                    try {
+                      // Actualizar en la base de datos usando el servicio
+                      const result = await addPlanAccion(updatedItem) // addPlanAccion también actualiza si existe el ID
+                      if (result) {
+                        // Actualizar el estado local
+                        setPlanAccionItems(prev => prev.map(item => 
+                          item.id === updatedItem.id ? updatedItem : item
+                        ))
+                        toast({
+                          title: "Plan actualizado",
+                          description: "Los cambios se han guardado correctamente",
+                        })
+                      }
+                    } catch (error) {
+                      console.error("Error al actualizar plan:", error)
+                      toast({
+                        title: "Error",
+                        description: "No se pudo actualizar el plan de acción",
+                        variant: "destructive",
+                      })
+                    }
+                  }}
+                  onItemDelete={async (itemId) => {
+                    try {
+                      // Eliminar de la lista local (la eliminación real se maneja en el componente)
+                      setPlanAccionItems(prev => prev.filter(item => item.id !== itemId))
+                      toast({
+                        title: "Plan eliminado",
+                        description: "El plan de acción se ha eliminado correctamente",
+                      })
+                    } catch (error) {
+                      console.error("Error al eliminar plan:", error)
+                      toast({
+                        title: "Error",
+                        description: "No se pudo eliminar el plan de acción",
+                        variant: "destructive",
+                      })
+                    }
+                  }}
+                />
+              ) : (
+                // Tabla tradicional del plan de acción
+                <Card className="mb-8">
+                  <CardHeader className="bg-primary/5">
+                    <CardTitle className="flex items-center text-gray-900">
+                      <FileText className="mr-2 h-5 w-5 text-primary" />
+                      Actividades del Plan de Acción
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0 overflow-auto">
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-sm">
+                        <thead>
+                          <tr className="bg-gray-100 text-left">
+                            <th className="border border-gray-300 px-3 py-2 font-medium">N°</th>
+                            <th className="border border-gray-300 px-3 py-2 font-medium">Programa</th>
+                            <th className="border border-gray-300 px-3 py-2 font-medium">Objetivo</th>
+                            <th className="border border-gray-300 px-3 py-2 font-medium">Meta</th>
+                            <th className="border border-gray-300 px-3 py-2 font-medium">Presupuesto</th>
+                            <th className="border border-gray-300 px-3 py-2 font-medium">Acciones</th>
+                            <th className="border border-gray-300 px-3 py-2 font-medium">% Avance</th>
+                            <th className="border border-gray-300 px-3 py-2 font-medium">Indicadores</th>
+                            <th className="border border-gray-300 px-3 py-2 font-medium">Plan Decenal</th>
+                            <th className="border border-gray-300 px-3 py-2 font-medium">Programa PDM</th>
+                            <th className="border border-gray-300 px-3 py-2 font-medium">Subprograma PDM</th>
+                            <th className="border border-gray-300 px-3 py-2 font-medium">Proyecto PDM</th>
+                            <th className="border border-gray-300 px-3 py-2 font-medium">Fecha Inicio</th>
+                            <th className="border border-gray-300 px-3 py-2 font-medium">Fecha Fin</th>
+                            <th className="border border-gray-300 px-3 py-2 font-medium">Responsable</th>
+                            <th className="border border-gray-300 px-3 py-2 font-medium">Estado</th>
                           </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="p-4 text-center text-sm text-gray-500">
-                    <p>
-                      Mostrando {Math.min(10, planAccionItems.length)} de {planAccionItems.length} actividades del Plan de Acción 2025. 
-                      {planAccionItems.length > 10 && " Use la función de exportar para ver el documento completo."}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+                        </thead>
+                        <tbody>
+                          {filteredData.length > 0 ? (
+                            filteredData.slice(0, 10).map((item, index) => (
+                              <tr key={item.id}>
+                                <td className="border border-gray-300 px-3 py-2">{index + 1}</td>
+                                <td className="border border-gray-300 px-3 py-2">{item.programa}</td>
+                                <td className="border border-gray-300 px-3 py-2">{item.objetivo}</td>
+                                <td className="border border-gray-300 px-3 py-2">{item.meta}</td>
+                                <td className="border border-gray-300 px-3 py-2">{item.presupuesto}</td>
+                                <td className="border border-gray-300 px-3 py-2">{item.acciones}</td>
+                                <td className="border border-gray-300 px-3 py-2">{item.porcentajeAvance}%</td>
+                                <td className="border border-gray-300 px-3 py-2">{item.indicadores}</td>
+                                <td className="border border-gray-300 px-3 py-2">{item.metaDecenal || "-"}</td>
+                                <td className="border border-gray-300 px-3 py-2">{item.programaPDM || "-"}</td>
+                                <td className="border border-gray-300 px-3 py-2">{item.subprogramaPDM || "-"}</td>
+                                <td className="border border-gray-300 px-3 py-2">{item.proyectoPDM || "-"}</td>
+                                <td className="border border-gray-300 px-3 py-2">{item.fechaInicio}</td>
+                                <td className="border border-gray-300 px-3 py-2">{item.fechaFin}</td>
+                                <td className="border border-gray-300 px-3 py-2">{item.responsable}</td>
+                                <td className="border border-gray-300 px-3 py-2">{item.estado}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={16} className="border border-gray-300 px-3 py-8 text-center text-gray-500">
+                                {isLoading ? "Cargando datos..." : "No hay datos del plan de acción. Use la pestaña 'Gestionar Datos' para importar información."}
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="p-4 text-center text-sm text-gray-500">
+                      <p>
+                        Mostrando {Math.min(10, filteredData.length)} de {filteredData.length} actividades del Plan de Acción 2025. 
+                        {filteredData.length > 10 && " Use la función de exportar para ver el documento completo."}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             <TabsContent value="manage" className="mt-6">

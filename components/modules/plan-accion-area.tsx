@@ -10,6 +10,7 @@ import Papa from "papaparse"
 import type { PlanAccionItem } from "@/types/plan-accion"
 import { useDebouncedSearch } from "@/hooks/use-debounced-search"
 import { usePlanAccionService } from "@/hooks/use-plan-accion-service"
+import { usePlanAccionImportExport } from "@/hooks/use-plan-accion-import-export"
 import { getColorClasses } from "@/utils/plan-accion"
 import { PlanAccionRow } from "@/components/plan-accion/plan-accion-row"
 import { PlanAccionToolbar } from "@/components/plan-accion/plan-accion-toolbar"
@@ -56,13 +57,18 @@ export default function PlanAccionArea({
 }: PlanAccionAreaProps) {
   // Estado local
   const [planAccionItems, setPlanAccionItems] = useState<PlanAccionItem[]>(initialItems)
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [dialogMode, setDialogMode] = useState<"add" | "edit">("add")
+  const [editingItem, setEditingItem] = useState<PlanAccionItem | null>(null)
   const [isLoadingTooLong, setIsLoadingTooLong] = useState(false)
   const dataFetchedRef = useRef(false)
 
   // Hooks personalizados
   const { isLoading, error, areaId, addPlanAccion, updatePlanAccion, deletePlanAccion, loadPlanesAccion } =
     usePlanAccionService(area)
+
+  // Hook para importación/exportación
+  const { exportToExcel, isExporting } = usePlanAccionImportExport()
 
   // Función de búsqueda para el hook de búsqueda debounced
   const searchPredicate = useCallback((item: PlanAccionItem, term: string) => {
@@ -161,7 +167,7 @@ export default function PlanAccionArea({
             },
           ])
         }
-        setIsAddDialogOpen(false)
+        setIsDialogOpen(false)
       } catch (error) {
         console.error("Error al añadir elemento:", error)
       }
@@ -169,11 +175,31 @@ export default function PlanAccionArea({
     [addPlanAccion, areaId],
   )
 
+  const handleEditItem = useCallback((item: PlanAccionItem) => {
+    console.log("🔄 EDITANDO ITEM:", item.programa, item.id)
+    setEditingItem(item)
+    setDialogMode("edit")
+    setIsDialogOpen(true)
+    console.log("🔄 MODAL ABIERTO EN MODO EDICIÓN")
+  }, [])
+
+  const handleDialogClose = useCallback((open: boolean) => {
+    console.log("🔄 Cerrando modal:", open)
+    setIsDialogOpen(open)
+    if (!open) {
+      setEditingItem(null)
+      setDialogMode("add")
+    }
+  }, [])
+
   const handleUpdateItem = useCallback(
     async (updatedItem: PlanAccionItem) => {
       try {
         await updatePlanAccion(updatedItem.id, updatedItem)
         setPlanAccionItems((prev) => prev.map((item) => (item.id === updatedItem.id ? updatedItem : item)))
+        setIsDialogOpen(false)
+        setEditingItem(null)
+        setDialogMode("add")
       } catch (error) {
         console.error("Error al actualizar elemento:", error)
       }
@@ -193,20 +219,14 @@ export default function PlanAccionArea({
     [deletePlanAccion],
   )
 
-  // Handler para exportar a CSV
-  const handleExportCSV = useCallback(() => {
-    const csv = Papa.unparse(planAccionItems)
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.setAttribute("href", url)
-    link.setAttribute("download", `plan-accion-${area}-${new Date().toISOString().split("T")[0]}.csv`)
-    link.style.visibility = "hidden"
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }, [planAccionItems, area])
+  // Handler para exportar a Excel (XLSX)
+  const handleExportExcel = useCallback(async () => {
+    try {
+      await exportToExcel(planAccionItems, `plan-accion-${area}-${new Date().toISOString().split("T")[0]}.xlsx`)
+    } catch (error) {
+      console.error("Error al exportar a Excel:", error)
+    }
+  }, [planAccionItems, area, exportToExcel])
 
   // Memorizar las clases de color para evitar recálculos
   const colorClasses = useMemo(() => getColorClasses(color), [color])
@@ -251,8 +271,12 @@ export default function PlanAccionArea({
         <PlanAccionToolbar
           searchTerm={searchTerm}
           onSearchChange={handleSearchChange}
-          onAddClick={() => setIsAddDialogOpen(true)}
-          onExportClick={handleExportCSV}
+          onAddClick={() => {
+            setDialogMode("add")
+            setEditingItem(null)
+            setIsDialogOpen(true)
+          }}
+          onExportClick={handleExportExcel}
         />
 
         {/* Mostrar error si existe */}
@@ -268,10 +292,10 @@ export default function PlanAccionArea({
           <Table>
             <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow>
+                <TableHead>Programa</TableHead>
                 <TableHead>Plan Decenal</TableHead>
                 <TableHead>Macroobjetivo</TableHead>
                 <TableHead>Objetivo Decenal</TableHead>
-                <TableHead>Programa</TableHead>
                 <TableHead>Objetivo</TableHead>
                 <TableHead>Meta</TableHead>
                 <TableHead>Presupuesto</TableHead>
@@ -282,13 +306,16 @@ export default function PlanAccionArea({
                 <TableHead>Fecha Fin</TableHead>
                 <TableHead>Responsable</TableHead>
                 <TableHead>Estado</TableHead>
+                <TableHead>Programa PDM 2024-2027</TableHead>
+                <TableHead>Subprograma PDM 2024-2027</TableHead>
+                <TableHead>Proyecto/Actividad PDM</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <td colSpan={15} className="h-32 text-center">
+                  <td colSpan={18} className="h-32 text-center">
                     <div className="flex flex-col items-center justify-center text-muted-foreground">
                       <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full mb-2"></div>
                       <p className="text-lg font-medium">Cargando datos...</p>
@@ -308,11 +335,11 @@ export default function PlanAccionArea({
                 </TableRow>
               ) : filteredItems.length > 0 ? (
                 filteredItems.map((item) => (
-                  <PlanAccionRow key={item.id} item={item} onEdit={handleUpdateItem} onDelete={handleDeleteItem} />
+                  <PlanAccionRow key={item.id} item={item} onEdit={handleEditItem} onDelete={handleDeleteItem} />
                 ))
               ) : (
                 <TableRow>
-                  <td colSpan={15} className="h-32 text-center">
+                  <td colSpan={18} className="h-32 text-center">
                     <div className="flex flex-col items-center justify-center text-muted-foreground">
                       <FileSpreadsheet className="mb-2 h-10 w-10" />
                       <p className="text-lg font-medium">No hay datos disponibles</p>
@@ -328,12 +355,15 @@ export default function PlanAccionArea({
         {/* Resumen de datos */}
         <PlanAccionSummary items={planAccionItems} />
 
-        {/* Diálogo para añadir nuevo elemento */}
+        {/* Diálogo unificado para añadir/editar elemento */}
         <PlanAccionAddDialog
-          open={isAddDialogOpen}
-          onOpenChange={setIsAddDialogOpen}
-          onSubmit={handleAddItem}
+          key={`dialog-${dialogMode}-${editingItem?.id || 'new'}`}
+          open={isDialogOpen}
+          onOpenChange={handleDialogClose}
+          onSubmit={dialogMode === "edit" ? handleUpdateItem : handleAddItem}
           isSubmitting={isLoading}
+          initialItem={editingItem}
+          mode={dialogMode}
         />
       </CardContent>
     </Card>
