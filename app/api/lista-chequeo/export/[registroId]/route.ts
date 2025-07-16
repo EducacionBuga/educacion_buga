@@ -5,10 +5,14 @@ import ExcelExportService from '@/lib/excel-export-service';
 
 // Crear cliente Supabase
 function getSupabaseClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!url || !key) {
+    throw new Error('Variables de entorno de Supabase no configuradas. Verifique NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY');
+  }
+  
+  return createClient(url, key);
 }
 
 export async function GET(
@@ -18,7 +22,22 @@ export async function GET(
   console.log('🔄 INICIANDO EXPORTACIÓN EXCEL - API');
   
   try {
-    const supabase = getSupabaseClient();
+    // Verificar conexión a Supabase antes de continuar
+    let supabase;
+    try {
+      supabase = getSupabaseClient();
+    } catch (configError) {
+      console.error('❌ Error de configuración de Supabase:', configError);
+      return NextResponse.json(
+        { 
+          error: 'Error de configuración del servidor',
+          details: configError instanceof Error ? configError.message : 'Error de configuración desconocido',
+          fix: 'Configure las variables de entorno NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY'
+        },
+        { status: 500 }
+      );
+    }
+
     const { registroId } = await params;
     
     console.log('📋 Registro ID recibido:', registroId);
@@ -38,9 +57,45 @@ export async function GET(
       .single();
 
     if (registroError || !registroInicial) {
-      console.error('❌ Registro no encontrado:', registroError);
+      console.error('❌ Error al obtener registro:', registroError);
+      
+      // Manejar diferentes tipos de errores de base de datos
+      if (registroError) {
+        // Error de conexión a la base de datos
+        if (registroError.code === 'PGRST301' || registroError.message?.includes('connection')) {
+          return NextResponse.json(
+            { 
+              error: 'Error de conexión a la base de datos',
+              details: registroError.message,
+              code: registroError.code,
+              registroId,
+              suggestion: 'Verifique la configuración de la base de datos y la conectividad de red'
+            },
+            { status: 503 }
+          );
+        }
+        
+        // Error de autenticación
+        if (registroError.code === '401' || registroError.message?.includes('authentication')) {
+          return NextResponse.json(
+            { 
+              error: 'Error de autenticación con la base de datos',
+              details: registroError.message,
+              registroId,
+              suggestion: 'Verifique las credenciales de la base de datos (SUPABASE_SERVICE_ROLE_KEY)'
+            },
+            { status: 401 }
+          );
+        }
+      }
+      
+      // Error genérico - registro no encontrado
       return NextResponse.json(
-        { error: 'Registro no encontrado' },
+        { 
+          error: 'Registro no encontrado',
+          details: registroError?.message || 'El registro especificado no existe en la base de datos',
+          registroId
+        },
         { status: 404 }
       );
     }
