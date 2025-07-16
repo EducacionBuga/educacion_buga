@@ -191,7 +191,7 @@ export async function GET(
       console.log(`📂 Categoría mapeada: ${cat.hoja_excel} → ${cat.nombre} (ID: ${cat.id})`);
     });
 
-    // 9. Obtener todas las respuestas para este registro
+    // 9. Obtener todas las respuestas para este registro (sin JOIN problemático)
     const { data: todasRespuestas, error: todasRespuestasError } = await supabase
       .from('lista_chequeo_respuestas')
       .select('*')
@@ -240,14 +240,52 @@ export async function GET(
       });
 
       // Filtrar respuestas específicas para esta categoría/hoja
+      // Primero obtenemos los IDs de los items de esta categoría
+      const idsItemsDeEstaCategoria = items?.filter(item => item.categoria_id === categoriaHoja?.id).map(item => item.id) || [];
+      
       const respuestasParaHoja = todasRespuestas?.filter((resp: any) => {
-        return resp.lista_chequeo_items_maestros?.categoria_id === categoriaHoja?.id;
+        return idsItemsDeEstaCategoria.includes(resp.item_id);
       }) || [];
 
       console.log(`🎯 Respuestas para hoja ${nombreHoja}: ${respuestasParaHoja.length}`);
 
       // Crear mapa de respuestas para esta hoja específica
       const respuestasMapHoja = new Map();
+      respuestasParaHoja.forEach((respuesta: any) => {
+        respuestasMapHoja.set(respuesta.item_id, respuesta);
+      });
+
+      // Aplicar respuestas solo para los items de esta categoría
+      const itemsDeEstaCategoria = items?.filter(item => item.categoria_id === categoriaHoja?.id) || [];
+      
+      itemsDeEstaCategoria.forEach((item: any) => {
+        const respuesta = respuestasMapHoja.get(item.id);
+        if (respuesta && item.fila_excel) {
+          const fila = item.fila_excel;
+          const row = worksheet.getRow(fila);
+          
+          console.log(`🔍 Procesando item ${item.numero}: ${respuesta.respuesta} en fila ${fila} de ${nombreHoja}`);
+          
+          // Limpiar las celdas C, D, E primero
+          row.getCell('C').value = null;
+          row.getCell('D').value = null;
+          row.getCell('E').value = null;
+
+          // Marcar la respuesta correspondiente
+          if (respuesta.respuesta === 'CUMPLE') {
+            row.getCell('C').value = 'X';
+            console.log(`✅ Marcado CUMPLE en ${nombreHoja} fila ${fila} columna C`);
+          } else if (respuesta.respuesta === 'NO_CUMPLE') {
+            row.getCell('D').value = 'X';
+            console.log(`✅ Marcado NO_CUMPLE en ${nombreHoja} fila ${fila} columna D`);
+          } else if (respuesta.respuesta === 'NO_APLICA') {
+            row.getCell('E').value = 'X';
+            console.log(`✅ Marcado NO_APLICA en ${nombreHoja} fila ${fila} columna E`);
+          }
+          
+          totalRespuestasAplicadas++;
+        }
+      });
       respuestasParaHoja.forEach((respuesta: any) => {
         respuestasMapHoja.set(respuesta.item_id, respuesta);
         console.log(`� Respuesta para ${nombreHoja}: Item ${respuesta.item_id} = ${respuesta.respuesta}`);
