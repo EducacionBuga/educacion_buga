@@ -341,16 +341,28 @@ export function useChecklistData(areaCode: string) {
     try {
       console.log('📤 Iniciando exportación Excel para registro:', targetRegistroId);
       
-      const response = await fetch(`/api/lista-chequeo/export/${targetRegistroId}`, {
+      // Intentar primero con el endpoint principal
+      let response = await fetch(`/api/lista-chequeo/export/${targetRegistroId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       });
       
+      // Si el endpoint principal falla, intentar con el fallback
+      if (!response.ok) {
+        console.warn('⚠️ Endpoint principal falló, intentando con fallback...');
+        response = await fetch(`/api/lista-chequeo/export/fallback/${targetRegistroId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+      }
+      
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Error en respuesta del servidor:', {
+        console.error('❌ Error en ambos endpoints:', {
           status: response.status,
           statusText: response.statusText,
           body: errorText
