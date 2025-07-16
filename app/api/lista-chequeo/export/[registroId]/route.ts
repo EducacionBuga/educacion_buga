@@ -1,48 +1,92 @@
 // app/api/lista-chequeo/export/[registroId]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createSupabaseClientForProduction } from '@/lib/supabase-client-production';
 import ExcelExportService from '@/lib/excel-export-service';
 
 // Crear cliente Supabase
 function getSupabaseClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  
-  if (!url || !key) {
-    throw new Error('Variables de entorno de Supabase no configuradas. Verifique NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY');
-  }
-  
-  return createClient(url, key);
+  return createSupabaseClientForProduction();
 }
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { registroId: string } }
 ) {
-  console.log('🔄 INICIANDO EXPORTACIÓN EXCEL - API');
+  const startTime = Date.now();
+  console.log('🔄 INICIANDO EXPORTACIÓN EXCEL - API (PRODUCCIÓN)');
   
   try {
-    // Verificar conexión a Supabase antes de continuar
-    let supabase;
-    try {
-      supabase = getSupabaseClient();
-    } catch (configError) {
-      console.error('❌ Error de configuración de Supabase:', configError);
+    // 1. Obtener y validar registroId
+    const { registroId } = await params;
+    
+    if (!registroId || registroId.length < 10) {
+      console.error('❌ Registro ID inválido:', registroId);
       return NextResponse.json(
         { 
-          error: 'Error de configuración del servidor',
-          details: configError instanceof Error ? configError.message : 'Error de configuración desconocido',
-          fix: 'Configure las variables de entorno NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY'
+          error: 'ID de registro inválido',
+          details: `El ID proporcionado '${registroId}' no es válido`,
+          registroId
+        },
+        { status: 400 }
+      );
+    }
+    
+    console.log('📋 Registro ID válido recibido:', registroId);
+
+    // 2. Crear cliente Supabase optimizado para producción
+    let supabase;
+    try {
+      supabase = createSupabaseClientForProduction();
+      console.log('✅ Cliente Supabase creado exitosamente para producción');
+    } catch (clientError) {
+      console.error('❌ Error creando cliente Supabase:', clientError);
+      return NextResponse.json(
+        { 
+          error: 'Error de configuración de la base de datos',
+          details: clientError instanceof Error ? clientError.message : 'Error desconocido al crear cliente',
+          environment: process.env.NODE_ENV
         },
         { status: 500 }
       );
     }
 
-    const { registroId } = await params;
+    // 4. Probar conexión a la base de datos
+    console.log('🔗 Probando conexión a la base de datos...');
     
-    console.log('📋 Registro ID recibido:', registroId);
+    try {
+      const { data: testConnection, error: testError } = await supabase
+        .from('lista_chequeo_categorias')
+        .select('id')
+        .limit(1);
+        
+      if (testError) {
+        console.error('❌ Error de conexión a la base de datos:', testError);
+        return NextResponse.json(
+          { 
+            error: 'Error de conexión a la base de datos',
+            details: testError.message,
+            code: testError.code,
+            suggestion: 'Verifique las credenciales y la conectividad a Supabase'
+          },
+          { status: 503 }
+        );
+      }
+      
+      console.log('✅ Conexión a la base de datos exitosa');
+    } catch (connectionError) {
+      console.error('❌ Error de red o conexión:', connectionError);
+      return NextResponse.json(
+        { 
+          error: 'Error de red al conectar con la base de datos',
+          details: connectionError instanceof Error ? connectionError.message : 'Error de conexión desconocido'
+        },
+        { status: 503 }
+      );
+    }
 
-    // 1. Verificar que el registro existe
+    // 5. Verificar que el registro existe
+    console.log('🔍 Buscando registro:', registroId);
+    
     const { data: registroInicial, error: registroError } = await supabase
       .from('lista_chequeo_registros')
       .select(`
@@ -168,7 +212,7 @@ export async function GET(
         .order('orden');
 
       // Filtrar respuestas que corresponden a este apartado
-      const respuestasApartado = todasLasRespuestas?.filter(resp => 
+      const respuestasApartado = todasLasRespuestas?.filter((resp: any) => 
         resp.item?.categoria_id === categoria.id
       ) || [];
 
@@ -203,18 +247,45 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error('🚨 Error detallado en exportación:', {
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    
+    console.error('🚨 Error crítico en exportación:', {
       error,
       message: error instanceof Error ? error.message : 'Error desconocido',
-      stack: error instanceof Error ? error.stack : 'No stack trace'
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      duration: `${duration}ms`,
+      timestamp: new Date().toISOString(),
+      nodeEnv: process.env.NODE_ENV,
+      memoryUsage: process.memoryUsage()
     });
+    
+    // Determinar el tipo de error para dar una respuesta más específica
+    let errorMessage = 'Error interno del servidor al exportar Excel';
+    let statusCode = 500;
+    
+    if (error instanceof Error) {
+      if (error.message.includes('ENOTFOUND') || error.message.includes('network')) {
+        errorMessage = 'Error de red al conectar con la base de datos';
+        statusCode = 503;
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Timeout al procesar la exportación';
+        statusCode = 504;
+      } else if (error.message.includes('permission') || error.message.includes('auth')) {
+        errorMessage = 'Error de permisos o autenticación';
+        statusCode = 401;
+      }
+    }
     
     return NextResponse.json(
       { 
-        error: 'Error interno del servidor al exportar Excel',
-        details: error instanceof Error ? error.message : 'Error desconocido'
+        error: errorMessage,
+        details: error instanceof Error ? error.message : 'Error desconocido',
+        timestamp: new Date().toISOString(),
+        duration: `${duration}ms`,
+        suggestion: 'Verifique los logs del servidor para más detalles'
       },
-      { status: 500 }
+      { status: statusCode }
     );
   }
 }
