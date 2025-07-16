@@ -1,21 +1,49 @@
 // app/api/lista-chequeo/export/[registroId]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseClientForProduction } from '@/lib/supabase-client-production';
-import ExcelExportService from '@/lib/excel-export-service';
-
-// Crear cliente Supabase
-function getSupabaseClient() {
-  return createSupabaseClientForProduction();
-}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { registroId: string } }
 ) {
   const startTime = Date.now();
-  console.log('🔄 INICIANDO EXPORTACIÓN EXCEL - API (PRODUCCIÓN)');
+  console.log('🔄 INICIANDO EXPORTACIÓN EXCEL - API (PRODUCCIÓN) - VERSIÓN ROBUSTA');
+  
+  // Importaciones dinámicas para mejor manejo de errores
+  let createSupabaseClientForProduction, ExcelExportService;
   
   try {
+    console.log('📦 Importando dependencias...');
+    
+    // Importar cliente Supabase
+    try {
+      const supabaseModule = await import('@/lib/supabase-client-production');
+      createSupabaseClientForProduction = supabaseModule.createSupabaseClientForProduction;
+      console.log('✅ Cliente Supabase importado');
+    } catch (importError) {
+      console.error('❌ Error importando cliente Supabase:', importError);
+      return NextResponse.json({
+        error: 'Error importando cliente de base de datos',
+        details: importError instanceof Error ? importError.message : 'Error de importación',
+        step: 'import_supabase_client'
+      }, { status: 500 });
+    }
+    
+    // Importar servicio Excel
+    try {
+      const excelModule = await import('@/lib/excel-export-service');
+      ExcelExportService = excelModule.default;
+      console.log('✅ Servicio Excel importado');
+    } catch (importError) {
+      console.error('❌ Error importando servicio Excel:', importError);
+      return NextResponse.json({
+        error: 'Error importando servicio de Excel',
+        details: importError instanceof Error ? importError.message : 'Error de importación',
+        step: 'import_excel_service'
+      }, { status: 500 });
+    }
+    
+    console.log('✅ Todas las dependencias importadas correctamente');
+
     // 1. Obtener y validar registroId
     const { registroId } = await params;
     
@@ -44,7 +72,8 @@ export async function GET(
         { 
           error: 'Error de configuración de la base de datos',
           details: clientError instanceof Error ? clientError.message : 'Error desconocido al crear cliente',
-          environment: process.env.NODE_ENV
+          environment: process.env.NODE_ENV,
+          step: 'create_supabase_client'
         },
         { status: 500 }
       );

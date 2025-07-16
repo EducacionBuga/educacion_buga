@@ -349,15 +349,32 @@ export function useChecklistData(areaCode: string) {
         },
       });
       
+      let usedFallback = false;
+      
       // Si el endpoint principal falla, intentar con el fallback
       if (!response.ok) {
-        console.warn('⚠️ Endpoint principal falló, intentando con fallback...');
+        console.warn(`⚠️ Endpoint principal falló (${response.status}), intentando con fallback...`);
+        
+        // Obtener detalles del error principal
+        try {
+          const errorText = await response.text();
+          console.warn('📋 Detalles del error principal:', {
+            status: response.status,
+            statusText: response.statusText,
+            body: errorText.substring(0, 200) + '...'
+          });
+        } catch (e) {
+          console.warn('No se pudo leer el error del endpoint principal');
+        }
+        
+        // Intentar fallback
         response = await fetch(`/api/lista-chequeo/export/fallback/${targetRegistroId}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
           },
         });
+        usedFallback = true;
       }
       
       if (!response.ok) {
@@ -365,13 +382,22 @@ export function useChecklistData(areaCode: string) {
         console.error('❌ Error en ambos endpoints:', {
           status: response.status,
           statusText: response.statusText,
-          body: errorText
+          body: errorText.substring(0, 500) + '...',
+          usedFallback
         });
-        throw new Error(`Error del servidor (${response.status}): ${errorText}`);
+        throw new Error(`Error del servidor (${response.status}): ${errorText.substring(0, 200)}...`);
       }
 
-      // Verificar que la respuesta sea un archivo
+      // Verificar que la respuesta sea un archivo Excel
       const contentType = response.headers.get('content-type');
+      const contentDisposition = response.headers.get('content-disposition');
+      
+      console.log('📋 Detalles de la respuesta:', {
+        contentType,
+        contentDisposition,
+        usedFallback: usedFallback ? '⚠️ SÍ (falló el principal)' : '✅ NO (principal exitoso)'
+      });
+      
       if (!contentType?.includes('spreadsheetml') && !contentType?.includes('excel')) {
         console.warn('⚠️ Tipo de contenido inesperado:', contentType);
       }
