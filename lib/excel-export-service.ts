@@ -139,18 +139,25 @@ export class ExcelExportService {
   /**
    * Llena los datos del contrato en el encabezado
    */
-  private static llenarEncabezadoContrato(worksheet: ExcelJS.Worksheet, contrato: ContratoData) {
-    // Número de contrato en B7
-    worksheet.getCell('B7').value = contrato.numeroContrato;
+  private static llenarEncabezadoContrato(worksheet: ExcelJS.Worksheet, contratoInfo: any) {
+    // Obtener el texto actual de la celda de número de contrato y concatenar
+    const celdaNumeroContrato = worksheet.getCell('A7');
+    const textoActualContrato = celdaNumeroContrato.value?.toString() || 'NUMERO DE CONTRATO:';
+    if (!textoActualContrato.includes(contratoInfo.contrato)) {
+      celdaNumeroContrato.value = `${textoActualContrato} ${contratoInfo.contrato}`;
+    }
     
-    // Contratista en B8  
-    worksheet.getCell('B8').value = contrato.contratista;
+    // Obtener el texto actual de la celda de contratista y concatenar
+    const celdaContratista = worksheet.getCell('A8');
+    const textoActualContratista = celdaContratista.value?.toString() || 'CONTRATISTA:';
+    if (!textoActualContratista.includes(contratoInfo.contratista)) {
+      celdaContratista.value = `${textoActualContratista} ${contratoInfo.contratista}`;
+    }
     
-    // Valor en D7
-    worksheet.getCell('D7').value = contrato.valor;
-    
-    // Dependencia (si existe una celda específica, ajustar)
-    // worksheet.getCell('B9').value = contrato.dependencia;
+    // Valor en la celda al lado de VALOR (mantener formato de moneda)
+    const celdaValor = worksheet.getCell('D7');
+    celdaValor.value = contratoInfo.valor;
+    celdaValor.numFmt = '"$"#,##0.00'; // Formato de moneda
   }
 
   /**

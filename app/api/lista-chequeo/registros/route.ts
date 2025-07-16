@@ -45,23 +45,23 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { dependencia, contrato, contratista, valor, objeto } = body
+    const { area_id, categoria_id, numero_contrato, contratista, valor_contrato, objeto } = body
 
-    if (!dependencia || !contrato || !contratista) {
+    if (!area_id || !numero_contrato || !contratista) {
       return NextResponse.json(
-        { error: 'Se requieren dependencia, contrato y contratista' },
+        { error: 'Se requieren área, número de contrato y contratista' },
         { status: 400 }
       )
     }
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-    // Verificar si ya existe un registro con el mismo número de contrato en la dependencia
+    // Verificar si ya existe un registro con el mismo número de contrato en el área
     const { data: existing, error: checkError } = await supabase
       .from('lista_chequeo_registros')
       .select('id')
-      .eq('dependencia', dependencia)
-      .eq('contrato', contrato)
+      .eq('dependencia', area_id)
+      .eq('numero_contrato', numero_contrato)
       .single()
 
     if (checkError && checkError.code !== 'PGRST116') {
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     if (existing) {
       return NextResponse.json(
-        { error: 'Ya existe un registro con este número de contrato en esta dependencia' },
+        { error: 'Ya existe un registro con este número de contrato en esta área' },
         { status: 409 }
       )
     }
@@ -83,10 +83,11 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('lista_chequeo_registros')
       .insert({
-        dependencia,
-        contrato,
+        dependencia: area_id,
+        categoria_id,
+        numero_contrato,
         contratista,
-        valor: valor || 0,
+        valor_contrato: valor_contrato || 0,
         objeto: objeto || ''
       })
       .select()
