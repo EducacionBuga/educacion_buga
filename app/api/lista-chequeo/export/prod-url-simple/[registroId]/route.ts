@@ -67,11 +67,42 @@ export async function GET(
       contratista: registro.contratista
     });
 
-    // 5. Modificar la primera hoja con información básica
-    const firstWorksheet = workbook.worksheets[0];
-    if (firstWorksheet) {
-      // Buscar y reemplazar información del contrato
-      firstWorksheet.eachRow((row, rowNumber) => {
+    // 5. Obtener respuestas del checklist
+    const { data: respuestas, error: respuestasError } = await supabase
+      .from('lista_chequeo_respuestas')
+      .select('*')
+      .eq('registro_id', registroId);
+
+    if (respuestasError) {
+      console.warn('⚠️ Error obteniendo respuestas:', respuestasError.message);
+    }
+
+    console.log(`📝 Respuestas encontradas: ${respuestas?.length || 0}`);
+
+    // 6. Obtener items para mapear con las respuestas
+    const { data: items, error: itemsError } = await supabase
+      .from('lista_chequeo_items_maestros')
+      .select('*')
+      .eq('categoria_id', registro.categoria_id);
+
+    if (itemsError) {
+      console.warn('⚠️ Error obteniendo items:', itemsError.message);
+    }
+
+    console.log(`📋 Items encontrados: ${items?.length || 0}`);
+
+    // 7. Crear mapa de respuestas por item_id
+    const respuestasMap = new Map();
+    respuestas?.forEach((respuesta: any) => {
+      respuestasMap.set(respuesta.item_id, respuesta);
+    });
+
+    // 8. Modificar todas las hojas con información del contrato y respuestas
+    workbook.worksheets.forEach((worksheet, index) => {
+      console.log(`🔄 Procesando hoja ${index + 1}: ${worksheet.name}`);
+
+      // Llenar información del contrato
+      worksheet.eachRow((row, rowNumber) => {
         row.eachCell((cell, colNumber) => {
           if (cell.value && typeof cell.value === 'string') {
             if (cell.value.includes('NUMERO DE CONTRATO')) {
@@ -84,15 +115,53 @@ export async function GET(
           }
         });
       });
-      console.log('✅ Información del contrato aplicada');
-    }
 
-    // 6. Generar archivo Excel
+      // Llenar respuestas de los ítems
+      items?.forEach((item: any) => {
+        const respuesta = respuestasMap.get(item.id);
+        if (respuesta && item.fila_excel) {
+          const fila = item.fila_excel;
+          
+          // Buscar las columnas donde van las respuestas
+          // Típicamente están en las columnas F, G, H para Cumple, No Cumple, No Aplica
+          try {
+            // Limpiar respuestas anteriores
+            worksheet.getCell(`F${fila}`).value = '';
+            worksheet.getCell(`G${fila}`).value = '';
+            worksheet.getCell(`H${fila}`).value = '';
+            
+            // Marcar la respuesta correspondiente
+            if (respuesta.respuesta === 'CUMPLE') {
+              worksheet.getCell(`F${fila}`).value = 'X';
+            } else if (respuesta.respuesta === 'NO_CUMPLE') {
+              worksheet.getCell(`G${fila}`).value = 'X';
+            } else if (respuesta.respuesta === 'NO_APLICA') {
+              worksheet.getCell(`H${fila}`).value = 'X';
+            }
+            
+            // Agregar observaciones si existen
+            if (respuesta.observaciones) {
+              // Buscar la columna de observaciones (típicamente I o J)
+              const observacionesCell = worksheet.getCell(`I${fila}`);
+              observacionesCell.value = respuesta.observaciones;
+            }
+          } catch (cellError) {
+            console.warn(`⚠️ Error llenando fila ${fila} del item ${item.numero_item}:`, cellError instanceof Error ? cellError.message : 'Error desconocido');
+          }
+        }
+      });
+
+      console.log(`✅ Hoja ${worksheet.name} procesada`);
+    });
+
+    console.log('✅ Información del contrato y respuestas aplicadas');
+
+    // 9. Generar archivo Excel
     const buffer = await workbook.xlsx.writeBuffer();
     const excelBuffer = Buffer.from(buffer);
     console.log(`✅ Excel generado (${excelBuffer.length} bytes)`);
 
-    // 7. Retornar archivo
+    // 10. Retornar archivo
     const fileName = `lista-chequeo-${registro.numero_contrato}-${registroId}.xlsx`;
     const elapsedTime = Date.now() - startTime;
     
