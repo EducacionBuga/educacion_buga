@@ -123,6 +123,38 @@ export async function GET(
 
       items = itemsDB;
       console.log(`📋 Items encontrados: ${items?.length || 0}`);
+      
+      // MAPEO AUTOMÁTICO: Agregar fila_excel basado en numero_item y la inspección de la plantilla
+      if (items && items.length > 0) {
+        items = items.map((item: any) => {
+          let fila_excel = null;
+          
+          // Mapeo basado en numero_item - usar los datos de la inspección
+          switch (item.numero_item) {
+            case 1: fila_excel = 12; break; // FICHA MGA
+            case 2: fila_excel = 13; break; // CERTIFICADO DE VIABILIDAD
+            case 3: fila_excel = 14; break; // ESTUDIOS PREVIOS / CERTIFICADO DISPONIBILIDAD
+            case 4: fila_excel = 15; break; // CERTIFICADO PERSONAL NO SUFICIENTE
+            case 5: fila_excel = 16; break; // ESTUDIOS PREVIOS Y ANÁLISIS
+            case 6: fila_excel = 17; break; // INVITACIÓN A PRESENTAR PROPUESTA
+            case 7: fila_excel = 18; break; // PROPUESTA CONTRACTUAL
+            case 8: fila_excel = 19; break; // HOJA DE VIDA SIGEP
+            case 9: fila_excel = 20; break; // FOTOCOPIA CÉDULA
+            case 10: fila_excel = 21; break; // FOTOCOPIA LIBRETA MILITAR
+            // Agregar más mapeos según los items que tengamos
+            default:
+              // Para items sin mapeo específico, usar fila base + numero
+              fila_excel = 11 + item.numero_item;
+          }
+          
+          return {
+            ...item,
+            fila_excel
+          };
+        });
+        
+        console.log(`🗺️ Mapeo automático aplicado - Items con fila_excel: ${items.filter((i: any) => i.fila_excel).length}`);
+      }
     }
 
     // 7. Crear mapa de respuestas por item_id
