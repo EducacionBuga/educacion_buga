@@ -54,54 +54,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+  
+  // Cliente optimizado para autenticación
   const supabase = createClientComponentClient()
 
-  // Función simplificada para obtener datos del usuario
-  const fetchUserData = useCallback(async (userId: string, email: string): Promise<AuthUser> => {
-    try {
-      // Intentar obtener datos del usuario de la tabla usuarios
-      const { data: userData } = await supabase
-        .from('usuarios')
-        .select('*')
-        .eq('id', userId)
-        .single()
-
-      if (userData) {
-        return {
-          id: userId,
-          email: email,
-          name: userData.name || userData.full_name || email.split('@')[0],
-          role: normalizeRole(userData.role || userData.tipo_usuario),
-          area_id: userData.area_id,
-          dependencia: userData.dependencia,
-          created_at: userData.created_at,
-          avatar_url: userData.avatar_url
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching user data:', error)
-    }
-
-    // Si no se encuentra, crear usuario básico
-    return {
-      id: userId,
-      email: email,
-      name: email.split('@')[0],
-      role: 'ADMIN'
-    }
-  }, [supabase])
-
-  // Función de login simplificada
+  // Función de login optimizada con timeout
   const login = useCallback(async (email: string, password: string) => {
     setLoading(true)
     
     try {
       console.log('🔑 Intentando login con:', email)
       
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Crear una promesa con timeout de 10 segundos
+      const loginPromise = supabase.auth.signInWithPassword({
         email,
         password
       })
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Login timeout - servidor demorado')), 10000)
+      )
+
+      const { data, error } = await Promise.race([loginPromise, timeoutPromise]) as any
 
       if (error) {
         console.error('❌ Error en login:', error.message)
@@ -111,8 +85,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.user && data.session) {
         console.log('✅ Login exitoso')
         
-        // Obtener datos del usuario
-        const userData = await fetchUserData(data.user.id, data.user.email!)
+        // Crear usuario básico sin consulta adicional a BD
+        const userData: AuthUser = {
+          id: data.user.id,
+          email: data.user.email!,
+          name: data.user.email!.split('@')[0],
+          role: 'ADMIN' // Role por defecto
+        }
         
         setUser(userData)
         setSession(data.session)
@@ -125,13 +104,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       return { success: false, error: 'No se pudo iniciar sesión' }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error inesperado en login:', error)
-      return { success: false, error: 'Error inesperado al iniciar sesión' }
+      const errorMessage = error.message === 'Login timeout - servidor demorado' 
+        ? 'El servidor está tardando demasiado. Intenta de nuevo.'
+        : 'Error inesperado al iniciar sesión'
+      return { success: false, error: errorMessage }
     } finally {
       setLoading(false)
     }
-  }, [supabase, fetchUserData])
+  }, [supabase])
 
   // Función de logout
   const logout = useCallback(async () => {
@@ -175,52 +157,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [supabase])
 
-  // Efecto para inicializar la autenticación
+  // Efecto optimizado para inicializar la autenticación - sin consultas extras
   useEffect(() => {
     let mounted = true
 
     const initializeAuth = async () => {
       try {
-        // Intentar obtener sesión actual
+        // Primero intentar cargar desde localStorage (más rápido)
+        const savedSession = localStorage.getItem('supabase_session')
+        const savedUser = localStorage.getItem('user_data')
+        
+        if (savedSession && savedUser && mounted) {
+          try {
+            const parsedSession = JSON.parse(savedSession)
+            const parsedUser = JSON.parse(savedUser)
+            
+            // Verificar si la sesión no ha expirado
+            const now = new Date()
+            const expiresAt = new Date(parsedSession.expires_at * 1000)
+            
+            if (expiresAt > now) {
+              setSession(parsedSession)
+              setUser(parsedUser)
+              setLoading(false)
+              return // Salir temprano si encontramos sesión válida
+            } else {
+              clearSession()
+            }
+          } catch (error) {
+            console.error('Error parsing saved session:', error)
+            clearSession()
+          }
+        }
+
+        // Solo si no hay sesión guardada, consultar Supabase
         const { data: { session: currentSession } } = await supabase.auth.getSession()
         
         if (currentSession && mounted) {
-          console.log('📱 Sesión encontrada')
+          console.log('📱 Sesión encontrada en Supabase')
           setSession(currentSession)
           
-          // Obtener datos del usuario
-          const userData = await fetchUserData(currentSession.user.id, currentSession.user.email!)
-          
-          if (mounted) {
-            setUser(userData)
-            localStorage.setItem('supabase_session', JSON.stringify(currentSession))
-            localStorage.setItem('user_data', JSON.stringify(userData))
+          // Crear usuario básico sin consulta adicional
+          const userData: AuthUser = {
+            id: currentSession.user.id,
+            email: currentSession.user.email!,
+            name: currentSession.user.email!.split('@')[0],
+            role: 'ADMIN'
           }
-        } else if (mounted) {
-          // Intentar cargar desde localStorage
-          const savedSession = localStorage.getItem('supabase_session')
-          const savedUser = localStorage.getItem('user_data')
           
-          if (savedSession && savedUser) {
-            try {
-              const parsedSession = JSON.parse(savedSession)
-              const parsedUser = JSON.parse(savedUser)
-              
-              // Verificar si la sesión no ha expirado
-              const now = new Date()
-              const expiresAt = new Date(parsedSession.expires_at * 1000)
-              
-              if (expiresAt > now) {
-                setSession(parsedSession)
-                setUser(parsedUser)
-              } else {
-                clearSession()
-              }
-            } catch (error) {
-              console.error('Error parsing saved session:', error)
-              clearSession()
-            }
-          }
+          setUser(userData)
+          localStorage.setItem('supabase_session', JSON.stringify(currentSession))
+          localStorage.setItem('user_data', JSON.stringify(userData))
         }
       } catch (error) {
         console.error('Error initializing auth:', error)
@@ -233,14 +220,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initializeAuth()
 
-    // Escuchar cambios de autenticación
+    // Escuchar cambios de autenticación (simplificado)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return
 
       console.log('🔄 Auth state change:', event)
 
       if (event === 'SIGNED_IN' && session) {
-        const userData = await fetchUserData(session.user.id, session.user.email!)
+        const userData: AuthUser = {
+          id: session.user.id,
+          email: session.user.email!,
+          name: session.user.email!.split('@')[0],
+          role: 'ADMIN'
+        }
         setUser(userData)
         setSession(session)
         localStorage.setItem('supabase_session', JSON.stringify(session))
@@ -257,7 +249,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [supabase, fetchUserData, clearSession])
+  }, [supabase, clearSession])
 
   const value: AuthContextType = {
     user,

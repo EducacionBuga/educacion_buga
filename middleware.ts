@@ -5,20 +5,23 @@ import type { NextRequest } from 'next/server'
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
   
-  // Permitir APIs de checklist sin autenticación
+  // Permitir APIs y rutas públicas sin autenticación
   if (req.nextUrl.pathname.startsWith('/api/checklist/') || 
-      req.nextUrl.pathname.startsWith('/api/test/')) {
+      req.nextUrl.pathname.startsWith('/api/test/') ||
+      req.nextUrl.pathname.startsWith('/login-test') ||
+      req.nextUrl.pathname.startsWith('/_next/') ||
+      req.nextUrl.pathname === '/') {
     return res
   }
   
   try {
-    // Crear cliente de Supabase con timeout optimizado
+    // Crear cliente de Supabase
     const supabase = createMiddlewareClient({ req, res })
     
-    // Verificar sesión con timeout
+    // Verificar sesión con timeout reducido
     const sessionPromise = supabase.auth.getSession()
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Session check timeout')), 3000) // 3 segundos
+      setTimeout(() => reject(new Error('Session check timeout')), 2000) // 2 segundos
     })
 
     const { data: { session } } = await Promise.race([

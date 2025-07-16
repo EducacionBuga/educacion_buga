@@ -11,10 +11,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Mail, Lock, LogIn } from 'lucide-react'
 
 export default function LoginTestPage() {
-  const [email, setEmail] = useState('admin@educacion.buga.gov.co')
-  const [password, setPassword] = useState('admin123')
+  const [email, setEmail] = useState('secretariaeducacionbuga@gmail.com')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState('Iniciando sesión...')
   
   const { login } = useAuth()
   const router = useRouter()
@@ -23,23 +24,38 @@ export default function LoginTestPage() {
     e.preventDefault()
     setError('')
     setIsLoading(true)
+    setLoadingMessage('Conectando al servidor...')
+
+    let loginResult = null
 
     try {
       console.log('🔐 Iniciando login con:', { email, password: '***' })
-      const result = await login(email, password)
       
-      if (result.success) {
+      // Actualizar mensaje de progreso
+      setTimeout(() => setLoadingMessage('Verificando credenciales...'), 500)
+      
+      loginResult = await login(email, password)
+      
+      if (loginResult.success) {
+        setLoadingMessage('¡Login exitoso! Redirigiendo...')
         console.log('✅ Login exitoso, redirigiendo...')
-        router.push('/dashboard')
+        
+        // Pequeña pausa para mostrar mensaje de éxito
+        setTimeout(() => {
+          router.push('/dashboard')
+        }, 1000)
       } else {
-        console.error('❌ Error en login:', result.error)
-        setError(result.error || 'Error de autenticación')
+        console.error('❌ Error en login:', loginResult.error)
+        setError(loginResult.error || 'Error de autenticación')
       }
     } catch (error) {
       console.error('❌ Error inesperado:', error)
-      setError('Error inesperado al iniciar sesión')
+      setError('Error inesperado al iniciar sesión. Verifique su conexión.')
     } finally {
-      setIsLoading(false)
+      setTimeout(() => {
+        setIsLoading(false)
+        setLoadingMessage('Iniciando sesión...')
+      }, loginResult?.success ? 1000 : 0)
     }
   }
 
@@ -120,7 +136,7 @@ export default function LoginTestPage() {
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Iniciando sesión...
+                    {loadingMessage}
                   </>
                 ) : (
                   <>
@@ -133,16 +149,19 @@ export default function LoginTestPage() {
           </CardContent>
         </Card>
 
-        {/* Información de prueba */}
+        {/* Información de credenciales */}
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="pt-6">
             <div className="text-center">
               <h3 className="text-sm font-medium text-blue-900 mb-2">
-                Credenciales de Prueba
+                Información de Acceso
               </h3>
               <div className="text-xs text-blue-700 space-y-1">
                 <div><strong>Email:</strong> secretariaeducacionbuga@gmail.com</div>
-                <div><strong>Contraseña:</strong> [Usar contraseña configurada]</div>
+                <div><strong>Nota:</strong> Ingrese su contraseña configurada</div>
+                <div className="mt-2 text-green-700">
+                  <strong>✓ Optimizado para producción</strong>
+                </div>
               </div>
             </div>
           </CardContent>
