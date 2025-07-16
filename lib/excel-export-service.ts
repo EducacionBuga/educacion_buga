@@ -74,8 +74,26 @@ export class ExcelExportService {
       }
       
       if (!templateLoaded) {
-        console.warn('⚠️ No se pudo cargar la plantilla Excel, creando archivo básico...');
-        return await this.crearExcelBasico(contratoInfo, datosPorApartado);
+        console.error('❌ No se pudo cargar la plantilla Excel desde ninguna ubicación');
+        console.log('📁 Rutas intentadas:', possiblePaths);
+        console.log('📁 Directorio actual:', process.cwd());
+        
+        // Verificar si existe el directorio public
+        const fs = require('fs');
+        try {
+          const publicExists = fs.existsSync('public');
+          const documentExists = fs.existsSync('public/document');
+          console.log('📁 Estructura de directorios:', { publicExists, documentExists });
+          
+          if (documentExists) {
+            const files = fs.readdirSync('public/document');
+            console.log('📁 Archivos en public/document:', files);
+          }
+        } catch (dirError) {
+          console.log('❌ Error verificando directorios:', dirError);
+        }
+        
+        throw new Error('No se pudo encontrar la plantilla Excel. Archivo lista-chequeo.xlsx no existe.');
       }
 
       console.log(`📊 Plantilla cargada exitosamente. Procesando datos por apartado...`);

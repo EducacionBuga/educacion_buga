@@ -350,17 +350,19 @@ export function useChecklistData(areaCode: string) {
       let endpointUsed = '';
       
       // Lista de endpoints a probar en orden de prioridad
-      const endpoints = isProduction ? [
-        { url: `/api/lista-chequeo/export/prod-simple/${targetRegistroId}`, name: 'prod-simple' },
-        { url: `/api/lista-chequeo/export/production/${targetRegistroId}`, name: 'production' },
-        { url: `/api/lista-chequeo/export/${targetRegistroId}`, name: 'principal' },
-        { url: `/api/lista-chequeo/export/fallback/${targetRegistroId}`, name: 'fallback' }
-      ] : [
-        { url: `/api/lista-chequeo/export/${targetRegistroId}`, name: 'principal' },
-        { url: `/api/lista-chequeo/export/fallback/${targetRegistroId}`, name: 'fallback' }
+      // SIEMPRE priorizar endpoints que usan la plantilla original
+      const endpoints = [
+        { url: `/api/lista-chequeo/export/prod-url-simple/${targetRegistroId}`, name: 'prod-url-simple', usesTemplate: true, description: 'Plantilla URL simple (producción)' },
+        { url: `/api/lista-chequeo/export/prod-url-template/${targetRegistroId}`, name: 'prod-url-template', usesTemplate: true, description: 'Plantilla desde URL externa (producción)' },
+        { url: `/api/lista-chequeo/export/${targetRegistroId}`, name: 'principal', usesTemplate: true, description: 'Endpoint principal con plantilla completa' },
+        { url: `/api/lista-chequeo/export/fallback/${targetRegistroId}`, name: 'fallback', usesTemplate: true, description: 'Fallback robusto con plantilla' },
+        { url: `/api/lista-chequeo/export/prod-template/${targetRegistroId}`, name: 'prod-template', usesTemplate: true, description: 'Producción optimizada con plantilla' },
+        { url: `/api/lista-chequeo/export/prod-hybrid/${targetRegistroId}`, name: 'prod-hybrid', usesTemplate: true, description: 'Híbrido inteligente para producción' },
+        { url: `/api/lista-chequeo/export/production/${targetRegistroId}`, name: 'production', usesTemplate: false, description: 'Producción sin plantilla' },
+        { url: `/api/lista-chequeo/export/prod-simple/${targetRegistroId}`, name: 'prod-simple', usesTemplate: false, description: 'Último recurso básico' }
       ];
       
-      console.log(`🎯 Modo: ${isProduction ? '🚀 PRODUCCIÓN' : '🛠️ DESARROLLO'}, probando ${endpoints.length} endpoints`);
+      console.log(`🎯 Modo: ${isProduction ? '🚀 PRODUCCIÓN' : '🛠️ DESARROLLO'}, priorizando endpoints con plantilla`);
       
       let lastError = null;
       
@@ -378,7 +380,7 @@ export function useChecklistData(areaCode: string) {
           if (response.ok) {
             endpointUsed = endpoint.name;
             usedFallback = endpoint.name === 'fallback';
-            console.log(`✅ Endpoint ${endpoint.name} funcionó correctamente`);
+            console.log(`✅ Endpoint ${endpoint.name} funcionó correctamente ${endpoint.usesTemplate ? '🎨 (CON PLANTILLA)' : '📄 (SIN PLANTILLA)'}`);
             break;
           } else {
             console.warn(`⚠️ Endpoint ${endpoint.name} falló con status ${response.status}`);
@@ -412,7 +414,8 @@ export function useChecklistData(areaCode: string) {
       console.log('📋 Detalles de la respuesta:', {
         contentType,
         contentDisposition,
-        endpointUsed: usedFallback ? '⚠️ FALLBACK (falló el principal)' : `✅ ${endpointUsed.toUpperCase()} (exitoso)`,
+        endpointUsed: `${endpointUsed.toUpperCase()}${usedFallback ? ' (FALLBACK)' : ''}`,
+        usesTemplate: endpoints.find(e => e.name === endpointUsed)?.usesTemplate ? '🎨 SÍ - PLANTILLA ORIGINAL' : '📄 NO - EXCEL BÁSICO',
         isProduction: isProduction ? '🚀 PRODUCCIÓN' : '🛠️ DESARROLLO'
       });
       
