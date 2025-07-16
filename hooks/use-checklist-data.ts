@@ -341,51 +341,68 @@ export function useChecklistData(areaCode: string) {
     try {
       console.log('📤 Iniciando exportación Excel para registro:', targetRegistroId);
       
-      // Intentar primero con el endpoint principal
-      let response = await fetch(`/api/lista-chequeo/export/${targetRegistroId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      // Detectar si estamos en producción
+      const isProduction = process.env.NODE_ENV === 'production' || 
+                           window.location.hostname !== 'localhost';
       
+      let response;
       let usedFallback = false;
+      let endpointUsed = '';
       
-      // Si el endpoint principal falla, intentar con el fallback
-      if (!response.ok) {
-        console.warn(`⚠️ Endpoint principal falló (${response.status}), intentando con fallback...`);
-        
-        // Obtener detalles del error principal
+      // Lista de endpoints a probar en orden de prioridad
+      const endpoints = isProduction ? [
+        { url: `/api/lista-chequeo/export/prod-simple/${targetRegistroId}`, name: 'prod-simple' },
+        { url: `/api/lista-chequeo/export/production/${targetRegistroId}`, name: 'production' },
+        { url: `/api/lista-chequeo/export/${targetRegistroId}`, name: 'principal' },
+        { url: `/api/lista-chequeo/export/fallback/${targetRegistroId}`, name: 'fallback' }
+      ] : [
+        { url: `/api/lista-chequeo/export/${targetRegistroId}`, name: 'principal' },
+        { url: `/api/lista-chequeo/export/fallback/${targetRegistroId}`, name: 'fallback' }
+      ];
+      
+      console.log(`🎯 Modo: ${isProduction ? '🚀 PRODUCCIÓN' : '🛠️ DESARROLLO'}, probando ${endpoints.length} endpoints`);
+      
+      let lastError = null;
+      
+      for (const endpoint of endpoints) {
         try {
-          const errorText = await response.text();
-          console.warn('📋 Detalles del error principal:', {
-            status: response.status,
-            statusText: response.statusText,
-            body: errorText.substring(0, 200) + '...'
+          console.log(`� Probando endpoint: ${endpoint.name} (${endpoint.url})`);
+          
+          response = await fetch(endpoint.url, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
           });
-        } catch (e) {
-          console.warn('No se pudo leer el error del endpoint principal');
+          
+          if (response.ok) {
+            endpointUsed = endpoint.name;
+            usedFallback = endpoint.name === 'fallback';
+            console.log(`✅ Endpoint ${endpoint.name} funcionó correctamente`);
+            break;
+          } else {
+            console.warn(`⚠️ Endpoint ${endpoint.name} falló con status ${response.status}`);
+            lastError = {
+              endpoint: endpoint.name,
+              status: response.status,
+              statusText: response.statusText
+            };
+          }
+        } catch (fetchError) {
+          console.warn(`❌ Error de red en ${endpoint.name}:`, fetchError);
+          lastError = {
+            endpoint: endpoint.name,
+            error: fetchError instanceof Error ? fetchError.message : 'Network error'
+          };
         }
-        
-        // Intentar fallback
-        response = await fetch(`/api/lista-chequeo/export/fallback/${targetRegistroId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        usedFallback = true;
       }
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Error en ambos endpoints:', {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorText.substring(0, 500) + '...',
-          usedFallback
-        });
-        throw new Error(`Error del servidor (${response.status}): ${errorText.substring(0, 200)}...`);
+      if (!response || !response.ok) {
+        console.error('❌ Todos los endpoints fallaron:', lastError);
+        const errorMsg = lastError ? 
+          `Error en ${lastError.endpoint}: ${lastError.status || lastError.error}` :
+          'Error desconocido en todos los endpoints';
+        throw new Error(`Error del servidor: ${errorMsg}`);
       }
 
       // Verificar que la respuesta sea un archivo Excel
@@ -395,7 +412,8 @@ export function useChecklistData(areaCode: string) {
       console.log('📋 Detalles de la respuesta:', {
         contentType,
         contentDisposition,
-        usedFallback: usedFallback ? '⚠️ SÍ (falló el principal)' : '✅ NO (principal exitoso)'
+        endpointUsed: usedFallback ? '⚠️ FALLBACK (falló el principal)' : `✅ ${endpointUsed.toUpperCase()} (exitoso)`,
+        isProduction: isProduction ? '🚀 PRODUCCIÓN' : '🛠️ DESARROLLO'
       });
       
       if (!contentType?.includes('spreadsheetml') && !contentType?.includes('excel')) {
