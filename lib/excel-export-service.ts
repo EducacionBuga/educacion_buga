@@ -45,12 +45,40 @@ export class ExcelExportService {
     datosPorApartado: Record<string, any>
   ): Promise<Buffer> {
     try {
-      // Cargar la plantilla Excel
-      const templatePath = path.join(process.cwd(), 'public', 'document', 'lista-chequeo.xlsx');
+      console.log('🔄 Iniciando exportación múltiple...');
+      
+      // Intentar cargar la plantilla Excel con múltiples rutas
+      const possiblePaths = [
+        path.join(process.cwd(), 'public', 'document', 'lista-chequeo.xlsx'),
+        path.join(process.cwd(), 'public/document/lista-chequeo.xlsx'),
+        './public/document/lista-chequeo.xlsx',
+        '/tmp/lista-chequeo.xlsx' // Para entornos serverless
+      ];
+      
       const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.readFile(templatePath);
+      let templateLoaded = false;
+      let usedPath = '';
+      
+      for (const templatePath of possiblePaths) {
+        try {
+          console.log(`📁 Intentando cargar plantilla desde: ${templatePath}`);
+          await workbook.xlsx.readFile(templatePath);
+          templateLoaded = true;
+          usedPath = templatePath;
+          console.log(`✅ Plantilla cargada exitosamente desde: ${templatePath}`);
+          break;
+        } catch (error) {
+          console.log(`❌ No se pudo cargar desde: ${templatePath}`, error);
+          continue;
+        }
+      }
+      
+      if (!templateLoaded) {
+        console.warn('⚠️ No se pudo cargar la plantilla Excel, creando archivo básico...');
+        return await this.crearExcelBasico(contratoInfo, datosPorApartado);
+      }
 
-      console.log('📊 Procesando datos por apartado...');
+      console.log(`📊 Plantilla cargada exitosamente. Procesando datos por apartado...`);
 
       // Lista de apartados a procesar
       const apartados = ['SAMC', 'MINIMA CUANTÍA', 'CONTRATO INTERADMINISTRATIVO', 'PRESTACIÓN DE SERVICIOS'];
@@ -128,8 +156,24 @@ export class ExcelExportService {
       return Buffer.from(buffer);
 
     } catch (error) {
-      console.error('Error exportando Excel múltiple:', error);
-      throw new Error(`Error al exportar: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      console.error('🚨 Error detallado en exportación múltiple:', {
+        error: error,
+        message: error instanceof Error ? error.message : 'Error desconocido',
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      });
+      
+      // Intentar determinar el tipo de error específico
+      if (error instanceof Error) {
+        if (error.message.includes('ENOENT') || error.message.includes('no such file')) {
+          throw new Error('No se pudo encontrar la plantilla Excel. Archivo lista-chequeo.xlsx no existe.');
+        } else if (error.message.includes('EACCES') || error.message.includes('permission')) {
+          throw new Error('Sin permisos para acceder a la plantilla Excel.');
+        } else if (error.message.includes('corrupted') || error.message.includes('invalid')) {
+          throw new Error('La plantilla Excel está corrupta o es inválida.');
+        }
+      }
+      
+      throw new Error(`Error al exportar Excel: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   }
 
@@ -256,6 +300,77 @@ export class ExcelExportService {
     const fecha = new Date().toISOString().split('T')[0];
     const categoriaLimpia = categoria.replace(/\s+/g, '_').toUpperCase();
     return `Lista_Chequeo_${categoriaLimpia}_${numeroContrato}_${fecha}.xlsx`;
+  }
+
+  /**
+   * Crea un Excel básico cuando no se encuentra la plantilla
+   */
+  private static async crearExcelBasico(
+    contratoInfo: any,
+    datosPorApartado: Record<string, any>
+  ): Promise<Buffer> {
+    console.log('📄 Creando Excel básico sin plantilla...');
+    
+    const workbook = new ExcelJS.Workbook();
+    
+    // Crear hojas básicas para cada apartado
+    const apartados = ['SAMC', 'MINIMA CUANTÍA', 'CONTRATO INTERADMINISTRATIVO', 'PRESTACIÓN DE SERVICIOS'];
+    
+    for (const apartado of apartados) {
+      const worksheet = workbook.addWorksheet(apartado);
+      
+      // Encabezados básicos
+      worksheet.getCell('A1').value = 'LISTA DE CHEQUEO CONTRACTUAL';
+      worksheet.getCell('A1').font = { bold: true, size: 16 };
+      
+      worksheet.getCell('A3').value = `MODALIDAD: ${apartado}`;
+      worksheet.getCell('A3').font = { bold: true };
+      
+      worksheet.getCell('A5').value = `Número de Contrato: ${contratoInfo.contrato || 'N/A'}`;
+      worksheet.getCell('A6').value = `Contratista: ${contratoInfo.contratista || 'N/A'}`;
+      worksheet.getCell('A7').value = `Valor: ${contratoInfo.valor || 'N/A'}`;
+      
+      // Encabezados de tabla
+      worksheet.getCell('A10').value = 'Ítem';
+      worksheet.getCell('B10').value = 'Descripción';
+      worksheet.getCell('C10').value = 'Respuesta';
+      worksheet.getCell('D10').value = 'Observaciones';
+      
+      // Aplicar estilo a encabezados
+      ['A10', 'B10', 'C10', 'D10'].forEach(cell => {
+        worksheet.getCell(cell).font = { bold: true };
+        worksheet.getCell(cell).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE0E0E0' }
+        };
+      });
+      
+      // Ajustar anchos de columna
+      worksheet.getColumn('A').width = 10;
+      worksheet.getColumn('B').width = 50;
+      worksheet.getColumn('C').width = 15;
+      worksheet.getColumn('D').width = 30;
+      
+      // Llenar datos si existen
+      const datosApartado = datosPorApartado[apartado];
+      if (datosApartado?.items) {
+        let fila = 11;
+        datosApartado.items.forEach((item: any) => {
+          const respuesta = datosApartado.respuestas?.find((r: any) => r.item_id === item.id);
+          
+          worksheet.getCell(`A${fila}`).value = item.numero || fila - 10;
+          worksheet.getCell(`B${fila}`).value = item.titulo || item.texto || 'Sin descripción';
+          worksheet.getCell(`C${fila}`).value = respuesta?.respuesta || 'SIN RESPUESTA';
+          worksheet.getCell(`D${fila}`).value = respuesta?.observaciones || '';
+          
+          fila++;
+        });
+      }
+    }
+    
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
   }
 }
 

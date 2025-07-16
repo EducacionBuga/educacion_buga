@@ -15,58 +15,49 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { registroId: string } }
 ) {
-  console.log('🔄🔄🔄 EXPORTACIÓN MÚLTIPLE MEJORADA - DATOS POR APARTADO 🔄🔄🔄')
-  console.log('📋 Registro ID:', (await params).registroId)
+  console.log('🔄 INICIANDO EXPORTACIÓN EXCEL - API');
   
   try {
     const supabase = getSupabaseClient();
     const { registroId } = await params;
+    
+    console.log('📋 Registro ID recibido:', registroId);
 
-    // 1. Obtener información del registro inicial para sacar el contrato
+    // 1. Verificar que el registro existe
     const { data: registroInicial, error: registroError } = await supabase
       .from('lista_chequeo_registros')
       .select(`
-        *,
+        id,
+        numero_contrato,
+        contratista,
+        valor_contrato,
+        objeto,
         categoria:lista_chequeo_categorias(nombre)
       `)
       .eq('id', registroId)
       .single();
 
     if (registroError || !registroInicial) {
+      console.error('❌ Registro no encontrado:', registroError);
       return NextResponse.json(
         { error: 'Registro no encontrado' },
         { status: 404 }
       );
     }
-
-    // 2. Obtener información del contrato (si existe) o usar datos del registro
-    console.log('🔍 [DEBUG] Estructura del registro:', JSON.stringify(registroInicial, null, 2));
-    console.log('🔍 [DEBUG] Campos disponibles en registro:', Object.keys(registroInicial));
     
-    // Intentar múltiples campos para el número de contrato - PRIORIZAR numero_contrato
-    console.log('🔍 [DEBUG] Valores por campo:');
-    console.log('  - numero_contrato:', registroInicial.numero_contrato);
-    console.log('  - contrato:', registroInicial.contrato);
-    console.log('  - numeroContrato:', registroInicial.numeroContrato);
-    console.log('  - contract_number:', registroInicial.contract_number);
+    console.log('✅ Registro encontrado:', registroInicial);
+
+    // 2. Extraer información del contrato
+    const contratoInfo = {
+      contrato: registroInicial.numero_contrato || 'SIN_CONTRATO',
+      contratista: registroInicial.contratista || 'SIN_CONTRATISTA', 
+      valor: registroInicial.valor_contrato || 0,
+      objeto: registroInicial.objeto || 'SIN_OBJETO'
+    };
     
-    const contrato = registroInicial.numero_contrato ||  // PRIORIZAR ESTE CAMPO
-                    registroInicial.contrato || 
-                    registroInicial.numeroContrato ||
-                    registroInicial.contract_number ||
-                    'SIN_CONTRATO';
-                    
-    const contratista = registroInicial.contratista || registroInicial.contractor || 'SIN_CONTRATISTA';
-    const valor = registroInicial.valor || registroInicial.valor_contrato || registroInicial.contract_value || 0;
-    const objeto = registroInicial.objeto || registroInicial.contract_object || 'SIN_OBJETO';
+    console.log('📋 Información del contrato extraída:', contratoInfo);
 
-    console.log('📋 Datos extraídos FINALES:');
-    console.log('📋 - Contrato final:', contrato);
-    console.log('📋 - Contratista final:', contratista);
-    console.log('📋 - Valor final:', valor);
-    console.log('📋 - Objeto final:', objeto);
-
-    // 3. Obtener todas las respuestas del registro original
+    // 3. Obtener todas las respuestas del registro
     const { data: todasLasRespuestas, error: respuestasError } = await supabase
       .from('lista_chequeo_respuestas')
       .select(`
@@ -75,6 +66,8 @@ export async function GET(
           id,
           numero,
           orden,
+          titulo,
+          texto,
           categoria_id,
           categoria:lista_chequeo_categorias(nombre)
         )
@@ -82,7 +75,7 @@ export async function GET(
       .eq('registro_id', registroId);
 
     if (respuestasError) {
-      console.error('Error obteniendo respuestas:', respuestasError);
+      console.error('❌ Error obteniendo respuestas:', respuestasError);
       return NextResponse.json(
         { error: 'Error obteniendo respuestas' },
         { status: 500 }
@@ -90,13 +83,8 @@ export async function GET(
     }
 
     console.log(`📋 Total respuestas encontradas: ${todasLasRespuestas?.length || 0}`);
-    
-    // Debug: ver estructura de las respuestas
-    if (todasLasRespuestas && todasLasRespuestas.length > 0) {
-      console.log('🔍 Primera respuesta:', JSON.stringify(todasLasRespuestas[0], null, 2));
-    }
 
-    // 4. Obtener TODOS los apartados y sus datos
+    // 4. Obtener datos por apartado
     const apartados = ['SAMC', 'MINIMA CUANTÍA', 'CONTRATO INTERADMINISTRATIVO', 'PRESTACIÓN DE SERVICIOS'];
     const datosPorApartado: Record<string, any> = {};
 
@@ -120,7 +108,7 @@ export async function GET(
       // Obtener ítems del apartado
       const { data: items, error: itemsError } = await supabase
         .from('lista_chequeo_items_maestros')
-        .select('*')
+        .select('id, numero, orden, titulo, texto, categoria_id')
         .eq('categoria_id', categoria.id)
         .order('orden');
 
@@ -137,25 +125,18 @@ export async function GET(
 
       console.log(`📊 Apartado ${apartado}: ${items?.length || 0} ítems, ${respuestasApartado.length} respuestas`);
     }
-    
-    console.log('📊 Procesando datos por apartado...');
 
-    // 5. Crear estructura de información del contrato
-    const contratoInfo = {
-      contrato,
-      contratista,
-      valor,
-      objeto
-    };
-
-    // 6. Generar Excel usando la nueva función múltiple
+    // 5. Generar Excel
+    console.log('📊 Generando archivo Excel...');
     const buffer = await ExcelExportService.exportarContratoMultiple(contratoInfo, datosPorApartado);
 
     // 6. Generar nombre del archivo
     const nombreArchivo = ExcelExportService.generarNombreArchivo(
-      contrato,
+      contratoInfo.contrato,
       'MÚLTIPLE'
     );
+
+    console.log(`✅ Excel generado exitosamente: ${nombreArchivo}`);
 
     // 7. Retornar archivo
     return new NextResponse(buffer as any, {
@@ -167,9 +148,17 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error('Error en exportación múltiple:', error);
+    console.error('🚨 Error detallado en exportación:', {
+      error,
+      message: error instanceof Error ? error.message : 'Error desconocido',
+      stack: error instanceof Error ? error.stack : 'No stack trace'
+    });
+    
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { 
+        error: 'Error interno del servidor al exportar Excel',
+        details: error instanceof Error ? error.message : 'Error desconocido'
+      },
       { status: 500 }
     );
   }

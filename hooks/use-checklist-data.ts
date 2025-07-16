@@ -330,40 +330,64 @@ export function useChecklistData(areaCode: string) {
 
   // Exportar a Excel
   const exportToExcel = useCallback(async (registroId?: string) => {
-    console.log('❌❌❌ USE-CHECKLIST-DATA EXPORT LLAMADO ❌❌❌')
-    console.log('❌❌❌ STACK TRACE:', new Error().stack?.split('\n')[1])
-    console.log('❌❌❌ REGISTRO ID:', registroId)
+    if (!registroId && !selectedRegistro?.id) {
+      console.error('❌ No hay registro seleccionado para exportar');
+      setError('Seleccione un registro para exportar');
+      return false;
+    }
+
+    const targetRegistroId = registroId || selectedRegistro?.id;
     
     try {
-      if (!registroId) {
-        throw new Error('Se requiere el ID del registro para exportar')
-      }
-
-      const response = await fetch(`/api/lista-chequeo/export/${registroId}`)
+      console.log('📤 Iniciando exportación Excel para registro:', targetRegistroId);
+      
+      const response = await fetch(`/api/lista-chequeo/export/${targetRegistroId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       
       if (!response.ok) {
-        throw new Error('Error al generar el archivo Excel')
+        const errorText = await response.text();
+        console.error('❌ Error en respuesta del servidor:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`Error del servidor (${response.status}): ${errorText}`);
+      }
+
+      // Verificar que la respuesta sea un archivo
+      const contentType = response.headers.get('content-type');
+      if (!contentType?.includes('spreadsheetml') && !contentType?.includes('excel')) {
+        console.warn('⚠️ Tipo de contenido inesperado:', contentType);
       }
 
       // Descargar el archivo
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.style.display = 'none'
-      a.href = url
-      a.download = `lista-chequeo-${registroId}.xlsx`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `lista-chequeo-${targetRegistroId}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
 
-      return true
+      console.log('✅ Exportación Excel completada exitosamente');
+      return true;
     } catch (error) {
-      console.error('Error al exportar a Excel:', error)
-      setError('Error al exportar a Excel')
-      return false
+      console.error('❌ Error detallado al exportar a Excel:', {
+        error,
+        message: error instanceof Error ? error.message : 'Error desconocido',
+        registroId: targetRegistroId
+      });
+      setError(`Error al exportar a Excel: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      return false;
     }
-  }, [])
+  }, [selectedRegistro])
 
   // Crear nuevo registro
   const createRegistro = useCallback(async (numeroContrato: string, valorContrato: number, contratista: string) => {
