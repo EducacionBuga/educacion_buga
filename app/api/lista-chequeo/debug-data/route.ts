@@ -41,6 +41,30 @@ export async function GET(request: NextRequest) {
 
     console.log('📋 Items maestros encontrados:', items?.length || 0);
 
+    // 4. Ver categorías disponibles
+    const { data: categorias, error: categoriasError } = await supabase
+      .from('lista_chequeo_categorias')
+      .select('*');
+
+    console.log('📂 Categorías encontradas:', categorias?.length || 0);
+
+    // 5. Ver items con sus categorías
+    const { data: itemsConCategoria, error: itemsCategoriaError } = await supabase
+      .from('lista_chequeo_items_maestros')
+      .select(`
+        id,
+        numero_item,
+        nombre,
+        categoria_id,
+        lista_chequeo_categorias!inner(
+          id,
+          nombre
+        )
+      `)
+      .limit(20);
+
+    console.log('📋 Items con categoría encontrados:', itemsConCategoria?.length || 0);
+
     const result = {
       registros: {
         count: registros?.length || 0,
@@ -56,6 +80,16 @@ export async function GET(request: NextRequest) {
         count: items?.length || 0,
         data: items || [],
         error: itemsError?.message
+      },
+      categorias: {
+        count: categorias?.length || 0,
+        data: categorias || [],
+        error: categoriasError?.message
+      },
+      items_con_categoria: {
+        count: itemsConCategoria?.length || 0,
+        data: itemsConCategoria || [],
+        error: itemsCategoriaError?.message
       }
     };
 

@@ -61,6 +61,7 @@ export async function GET(
     let registroFinal;
     let respuestas;
     let items;
+    let categoria: any = null; // Declarar categoria fuera para accesibilidad
 
     if (registroError || !registro) {
       console.log('⚠️ Registro no encontrado, usando datos de prueba');
@@ -95,8 +96,24 @@ export async function GET(
       
       console.log('✅ Registro encontrado:', {
         contrato: registroFinal.numero_contrato,
-        contratista: registroFinal.contratista
+        contratista: registroFinal.contratista,
+        categoria_id: registroFinal.categoria_id
       });
+
+      // Obtener información de la categoría para saber qué hoja procesar
+      const { data: categoriaData, error: categoriaError } = await supabase
+        .from('lista_chequeo_categorias')
+        .select('*')
+        .eq('id', registroFinal.categoria_id)
+        .single();
+
+      if (categoriaError || !categoriaData) {
+        console.warn('⚠️ Error obteniendo categoría:', categoriaError?.message);
+        throw new Error(`Categoría no encontrada: ${categoriaError?.message}`);
+      }
+
+      categoria = categoriaData;
+      console.log('📂 Categoría encontrada:', categoria.nombre, '→', categoria.hoja_excel);
 
       // 5. Obtener respuestas del checklist
       const { data: respuestasDB, error: respuestasError } = await supabase
@@ -112,10 +129,10 @@ export async function GET(
       console.log(`📝 Respuestas encontradas: ${respuestas?.length || 0}`);
 
       // 6. Obtener items para mapear con las respuestas
+      // Como los items no tienen categoria_id, obtenemos todos y los filtramos después
       const { data: itemsDB, error: itemsError } = await supabase
         .from('lista_chequeo_items_maestros')
-        .select('*')
-        .eq('categoria_id', registroFinal.categoria_id);
+        .select('*');
 
       if (itemsError) {
         console.warn('⚠️ Error obteniendo items:', itemsError.message);
@@ -166,11 +183,26 @@ export async function GET(
 
     console.log(`🗺️ Mapa de respuestas creado con ${respuestasMap.size} entradas`);
 
-    // 8. Modificar todas las hojas con información del contrato y respuestas
+    // 8. Modificar solo la hoja correspondiente a la categoría del registro
     let totalRespuestasAplicadas = 0;
     
+    // Determinar qué hoja procesar según la categoría
+    let hojaObjectivo = null;
+    if (!registroError && categoria) {
+      hojaObjectivo = categoria.hoja_excel;
+      console.log(`🎯 Procesando solo la hoja: ${hojaObjectivo}`);
+    }
+    
     workbook.worksheets.forEach((worksheet, index) => {
-      console.log(`🔄 Procesando hoja ${index + 1}: ${worksheet.name}`);
+      const nombreHoja = worksheet.name;
+      
+      // Solo procesar la hoja correspondiente a la categoría (o todas si es modo prueba)
+      if (hojaObjectivo && nombreHoja !== hojaObjectivo) {
+        console.log(`⏭️ Saltando hoja ${nombreHoja} (no corresponde a la categoría)`);
+        return;
+      }
+      
+      console.log(`🔄 Procesando hoja ${index + 1}: ${nombreHoja}`);
 
       // Llenar información del contrato
       worksheet.eachRow((row, rowNumber) => {
@@ -178,13 +210,13 @@ export async function GET(
           if (cell.value && typeof cell.value === 'string') {
             if (cell.value.includes('NUMERO DE CONTRATO')) {
               cell.value = `NUMERO DE CONTRATO: ${registroFinal.numero_contrato}`;
-              console.log(`✅ Actualizado contrato en ${worksheet.name} fila ${rowNumber}`);
+              console.log(`✅ Actualizado contrato en ${nombreHoja} fila ${rowNumber}`);
             } else if (cell.value.includes('CONTRATISTA')) {
               cell.value = `CONTRATISTA: ${registroFinal.contratista}`;
-              console.log(`✅ Actualizado contratista en ${worksheet.name} fila ${rowNumber}`);
+              console.log(`✅ Actualizado contratista en ${nombreHoja} fila ${rowNumber}`);
             } else if (cell.value.includes('VALOR')) {
               cell.value = `VALOR: $${registroFinal.valor_contrato?.toLocaleString() || 0}`;
-              console.log(`✅ Actualizado valor en ${worksheet.name} fila ${rowNumber}`);
+              console.log(`✅ Actualizado valor en ${nombreHoja} fila ${rowNumber}`);
             }
           }
         });
@@ -197,7 +229,7 @@ export async function GET(
         if (respuesta && item.fila_excel) {
           const fila = item.fila_excel;
           
-          console.log(`🔍 Procesando item ${item.numero || item.numero_item}: ${respuesta.respuesta} en fila ${fila} de ${worksheet.name}`);
+          console.log(`🔍 Procesando item ${item.numero || item.numero_item}: ${respuesta.respuesta} en fila ${fila} de ${nombreHoja}`);
           
           // Verificar el contenido actual de la fila antes de modificar
           const filaActual = worksheet.getRow(fila);
@@ -219,13 +251,13 @@ export async function GET(
             // Marcar la respuesta correspondiente
             if (respuesta.respuesta === 'CUMPLE') {
               worksheet.getCell(`C${fila}`).value = 'X';
-              console.log(`✅ Marcado CUMPLE en ${worksheet.name} fila ${fila} columna C`);
+              console.log(`✅ Marcado CUMPLE en ${nombreHoja} fila ${fila} columna C`);
             } else if (respuesta.respuesta === 'NO_CUMPLE') {
               worksheet.getCell(`D${fila}`).value = 'X';
-              console.log(`✅ Marcado NO_CUMPLE en ${worksheet.name} fila ${fila} columna D`);
+              console.log(`✅ Marcado NO_CUMPLE en ${nombreHoja} fila ${fila} columna D`);
             } else if (respuesta.respuesta === 'NO_APLICA') {
               worksheet.getCell(`E${fila}`).value = 'X';
-              console.log(`✅ Marcado NO_APLICA en ${worksheet.name} fila ${fila} columna E`);
+              console.log(`✅ Marcado NO_APLICA en ${nombreHoja} fila ${fila} columna E`);
             }
             
             // Verificar que se guardó correctamente
@@ -238,7 +270,7 @@ export async function GET(
             if (respuesta.observaciones) {
               const observacionesCell = worksheet.getCell(`F${fila}`);
               observacionesCell.value = respuesta.observaciones;
-              console.log(`✅ Agregadas observaciones en ${worksheet.name} fila ${fila} columna F: "${respuesta.observaciones}"`);
+              console.log(`✅ Agregadas observaciones en ${nombreHoja} fila ${fila} columna F: "${respuesta.observaciones}"`);
             }
             
             respuestasEnHoja++;
@@ -253,7 +285,7 @@ export async function GET(
         }
       });
 
-      console.log(`✅ Hoja ${worksheet.name} procesada - ${respuestasEnHoja} respuestas aplicadas`);
+      console.log(`✅ Hoja ${nombreHoja} procesada - ${respuestasEnHoja} respuestas aplicadas`);
     });
 
     console.log(`✅ Información del contrato y respuestas aplicadas - Total: ${totalRespuestasAplicadas} respuestas`);
