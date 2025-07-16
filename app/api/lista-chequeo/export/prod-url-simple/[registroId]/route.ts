@@ -80,11 +80,13 @@ export async function GET(
         { item_id: 3, respuesta: 'NO_APLICA', observaciones: 'Observación de prueba 3' }
       ];
       
-      // Items de prueba con filas excel
+      // Items de prueba con filas excel que coincidan con la plantilla real
       items = [
-        { id: 1, numero_item: '1', fila_excel: 10 },
-        { id: 2, numero_item: '2', fila_excel: 11 },
-        { id: 3, numero_item: '3', fila_excel: 12 }
+        { id: 1, numero_item: '1', fila_excel: 12 }, // FICHA MGA
+        { id: 2, numero_item: '2', fila_excel: 13 }, // CERTIFICADO DE VIABILIDAD
+        { id: 3, numero_item: '3', fila_excel: 14 }, // CERTIFICADO DE DISPONIBILIDAD / ESTUDIOS PREVIOS
+        { id: 4, numero_item: '4', fila_excel: 15 }, // CERTIFICADO PERSONAL NO SUFICIENTE
+        { id: 5, numero_item: '5', fila_excel: 16 }  // ESTUDIOS PREVIOS Y ANÁLISIS DEL SECTOR
       ];
       
       console.log('✅ Usando datos de prueba:', registroFinal);
@@ -165,30 +167,46 @@ export async function GET(
           
           console.log(`🔍 Procesando item ${item.numero || item.numero_item}: ${respuesta.respuesta} en fila ${fila} de ${worksheet.name}`);
           
-          // Buscar las columnas donde van las respuestas
+          // Verificar el contenido actual de la fila antes de modificar
+          const filaActual = worksheet.getRow(fila);
+          console.log(`📋 Contenido fila ${fila}:`, {
+            A: filaActual.getCell('A').value,
+            B: filaActual.getCell('B').value,
+            C: filaActual.getCell('C').value,
+            D: filaActual.getCell('D').value,
+            E: filaActual.getCell('E').value
+          });
+          
+          // Buscar las columnas donde van las respuestas (C=CUMPLE, D=NO_CUMPLE, E=NO_APLICA)
           try {
             // Limpiar respuestas anteriores
-            worksheet.getCell(`F${fila}`).value = '';
-            worksheet.getCell(`G${fila}`).value = '';
-            worksheet.getCell(`H${fila}`).value = '';
+            worksheet.getCell(`C${fila}`).value = '';
+            worksheet.getCell(`D${fila}`).value = '';
+            worksheet.getCell(`E${fila}`).value = '';
             
             // Marcar la respuesta correspondiente
             if (respuesta.respuesta === 'CUMPLE') {
-              worksheet.getCell(`F${fila}`).value = 'X';
-              console.log(`✅ Marcado CUMPLE en ${worksheet.name} fila ${fila} columna F`);
+              worksheet.getCell(`C${fila}`).value = 'X';
+              console.log(`✅ Marcado CUMPLE en ${worksheet.name} fila ${fila} columna C`);
             } else if (respuesta.respuesta === 'NO_CUMPLE') {
-              worksheet.getCell(`G${fila}`).value = 'X';
-              console.log(`✅ Marcado NO_CUMPLE en ${worksheet.name} fila ${fila} columna G`);
+              worksheet.getCell(`D${fila}`).value = 'X';
+              console.log(`✅ Marcado NO_CUMPLE en ${worksheet.name} fila ${fila} columna D`);
             } else if (respuesta.respuesta === 'NO_APLICA') {
-              worksheet.getCell(`H${fila}`).value = 'X';
-              console.log(`✅ Marcado NO_APLICA en ${worksheet.name} fila ${fila} columna H`);
+              worksheet.getCell(`E${fila}`).value = 'X';
+              console.log(`✅ Marcado NO_APLICA en ${worksheet.name} fila ${fila} columna E`);
             }
             
-            // Agregar observaciones si existen
+            // Verificar que se guardó correctamente
+            const valorC = worksheet.getCell(`C${fila}`).value;
+            const valorD = worksheet.getCell(`D${fila}`).value;
+            const valorE = worksheet.getCell(`E${fila}`).value;
+            console.log(`🔍 Verificación post-escritura fila ${fila}: C="${valorC}" D="${valorD}" E="${valorE}"`);
+            
+            // Agregar observaciones si existen (columna F)
             if (respuesta.observaciones) {
-              const observacionesCell = worksheet.getCell(`I${fila}`);
+              const observacionesCell = worksheet.getCell(`F${fila}`);
               observacionesCell.value = respuesta.observaciones;
-              console.log(`✅ Agregadas observaciones en ${worksheet.name} fila ${fila} columna I`);
+              console.log(`✅ Agregadas observaciones en ${worksheet.name} fila ${fila} columna F: "${respuesta.observaciones}"`);
             }
             
             respuestasEnHoja++;
@@ -198,6 +216,8 @@ export async function GET(
           }
         } else if (respuesta) {
           console.log(`⚠️ Item ${item.numero || item.numero_item} tiene respuesta pero no fila_excel`);
+        } else if (item.fila_excel) {
+          console.log(`⚠️ Item ${item.numero || item.numero_item} tiene fila_excel (${item.fila_excel}) pero no respuesta`);
         }
       });
 
