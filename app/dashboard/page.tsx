@@ -4,7 +4,7 @@ import type React from "react"
 
 import Image from "next/image"
 import Link from "next/link"
-import { useAuth } from "@/context/auth-context"
+import { useAuth } from "@/context"
 import { Headphones, ClipboardList, BookOpen, Eye, Monitor, Users } from "lucide-react"
 import { motion } from "framer-motion"
 import { ParticlesBackground } from "@/components/ui/particles-background"

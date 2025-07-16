@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
-import { AlertCircle, Save } from "lucide-react"
+import { AlertCircle, Save, Download } from "lucide-react"
 import { PlanAccionEstado, type PlanAccionItem } from "@/types/plan-accion"
 import { usePlanAccionForm } from "@/hooks/use-plan-accion-form"
 import { DatePicker } from "@/components/ui/date-picker"
@@ -55,19 +55,6 @@ export function PlanAccionAddDialog({
     console.log("🎯 DATOS DEL FORMULARIO RECIBIDOS:", formItem)
     onSubmit(formItem)
   })
-
-  // Inicializar el formulario cuando se abra en modo edición
-  useEffect(() => {
-    console.log("🔧 useEffect triggered:", { open, mode, initialItem: initialItem?.id || "null" })
-    
-    if (open && mode === "edit" && initialItem) {
-      console.log("🔄 CONFIGURANDO FORMULARIO PARA EDICIÓN:", initialItem)
-      setItem(initialItem)
-    } else if (open && mode === "add") {
-      console.log("🆕 RESETEANDO FORMULARIO PARA NUEVO ITEM")
-      resetForm()
-    }
-  }, [open, mode, initialItem, setItem, resetForm])
 
   const [planesDecenales] = useState([
     {
@@ -201,6 +188,96 @@ export function PlanAccionAddDialog({
       ],
     },
   ])
+
+  // Inicializar el formulario cuando se abra en modo edición
+  useEffect(() => {
+    console.log("🔧 useEffect triggered:", { open, mode, initialItem: initialItem?.id || "null" })
+    
+    if (open && mode === "edit" && initialItem) {
+      console.log("🔄 CONFIGURANDO FORMULARIO PARA EDICIÓN:", initialItem)
+      setItem(initialItem)
+      
+      // Configurar Plan Decenal si existe
+      if (initialItem.metaDecenal && initialItem.metaDecenal.trim() !== "") {
+        console.log("📝 Cargando Plan Decenal existente:", {
+          metaDecenal: initialItem.metaDecenal,
+          macroobjetivoDecenal: initialItem.macroobjetivoDecenal,
+          objetivoDecenal: initialItem.objetivoDecenal
+        })
+        
+        setIncluirPlanDecenal(true)
+        setSelectedPlan(initialItem.metaDecenal)
+        
+        // Buscar y configurar macroobjetivos
+        const plan = planesDecenales.find(p => p.nombre === initialItem.metaDecenal)
+        if (plan) {
+          setMacroobjetivos(plan.macroobjetivos)
+          
+          if (initialItem.macroobjetivoDecenal) {
+            setSelectedMacroobjetivo(initialItem.macroobjetivoDecenal)
+            
+            // Buscar y configurar objetivos
+            const macro = plan.macroobjetivos.find(m => m.nombre === initialItem.macroobjetivoDecenal)
+            if (macro) {
+              setObjetivos(macro.objetivos)
+              
+              if (initialItem.objetivoDecenal) {
+                setSelectedObjetivo(initialItem.objetivoDecenal)
+              }
+            }
+          }
+        }
+      } else {
+        // Limpiar Plan Decenal si no existe
+        setIncluirPlanDecenal(false)
+        setSelectedPlan("")
+        setSelectedMacroobjetivo("")
+        setSelectedObjetivo("")
+        setMacroobjetivos([])
+        setObjetivos([])
+      }
+      
+      // Configurar PDM si existe
+      if (initialItem.programaPDM && initialItem.programaPDM.trim() !== "") {
+        console.log("📝 Cargando PDM existente:", {
+          programaPDM: initialItem.programaPDM,
+          subprogramaPDM: initialItem.subprogramaPDM,
+          proyectoPDM: initialItem.proyectoPDM
+        })
+        
+        setIncluirPDM(true)
+        setSelectedProgramaPDM(initialItem.programaPDM)
+        
+        // Configurar subprogramas
+        const subprogramas = getSubprogramasByPrograma(initialItem.programaPDM)
+        setSubprogramasPDM(subprogramas)
+        
+        if (initialItem.subprogramaPDM) {
+          setSelectedSubprogramaPDM(initialItem.subprogramaPDM)
+          
+          // Configurar proyectos
+          const proyectos = getProyectosBySubprograma(initialItem.programaPDM, initialItem.subprogramaPDM)
+          setProyectosPDM(proyectos)
+          
+          if (initialItem.proyectoPDM) {
+            setSelectedProyectoPDM(initialItem.proyectoPDM)
+          }
+        }
+      } else {
+        // Limpiar PDM si no existe
+        setIncluirPDM(false)
+        setSelectedProgramaPDM("")
+        setSelectedSubprogramaPDM("")
+        setSelectedProyectoPDM("")
+        setSubprogramasPDM([])
+        setProyectosPDM([])
+      }
+      
+    } else if (open && mode === "add") {
+      console.log("🆕 RESETEANDO FORMULARIO PARA NUEVO ITEM")
+      resetForm()
+    }
+  }, [open, mode, initialItem, setItem, resetForm, planesDecenales])
 
   // Estados locales para los selectores del Plan Decenal
   const [incluirPlanDecenal, setIncluirPlanDecenal] = useState(false)
@@ -764,25 +841,46 @@ export function PlanAccionAddDialog({
 
             {/* Checkbox para Plan de Desarrollo Municipal (PDM) */}
             <div className="md:col-span-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="incluir-pdm"
-                  checked={incluirPDM}
-                  onCheckedChange={(checked) => {
-                    setIncluirPDM(checked as boolean)
-                    if (!checked) {
-                      setSelectedProgramaPDM("")
-                      setSelectedSubprogramaPDM("")
-                      setSelectedProyectoPDM("")
-                    }
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="incluir-pdm"
+                    checked={incluirPDM}
+                    onCheckedChange={(checked) => {
+                      setIncluirPDM(checked as boolean)
+                      if (!checked) {
+                        setSelectedProgramaPDM("")
+                        setSelectedSubprogramaPDM("")
+                        setSelectedProyectoPDM("")
+                      }
+                    }}
+                  />
+                  <label
+                    htmlFor="incluir-pdm"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    ¿Quieres agregar Plan de Desarrollo Municipal (PDM) 2024-2027?
+                  </label>
+                </div>
+                {/* Icono de descarga del Plan de Desarrollo */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  title="Consultar y descargar Plan de Desarrollo Municipal"
+                  onClick={() => {
+                    // Descargar el archivo desde public/document/plan-de-desarrollo.xlsx
+                    const link = document.createElement('a')
+                    link.href = '/document/plan-de-desarrollo.xlsx'
+                    link.download = 'plan-de-desarrollo.xlsx'
+                    document.body.appendChild(link)
+                    link.click()
+                    document.body.removeChild(link)
                   }}
-                />
-                <label
-                  htmlFor="incluir-pdm"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  ¿Quieres agregar Plan de Desarrollo Municipal (PDM) 2024-2027?
-                </label>
+                  <Download className="h-4 w-4" />
+                </Button>
               </div>
             </div>
 

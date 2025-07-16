@@ -40,12 +40,31 @@ export async function GET(
     }
 
     // 2. Obtener información del contrato (si existe) o usar datos del registro
-    const contrato = registroInicial.contrato || registroInicial.numero_contrato || 'SIN_CONTRATO';
-    const contratista = registroInicial.contratista || 'SIN_CONTRATISTA';
-    const valor = registroInicial.valor || 0;
-    const objeto = registroInicial.objeto || 'SIN_OBJETO';
+    console.log('🔍 [DEBUG] Estructura del registro:', JSON.stringify(registroInicial, null, 2));
+    console.log('🔍 [DEBUG] Campos disponibles en registro:', Object.keys(registroInicial));
+    
+    // Intentar múltiples campos para el número de contrato - PRIORIZAR numero_contrato
+    console.log('🔍 [DEBUG] Valores por campo:');
+    console.log('  - numero_contrato:', registroInicial.numero_contrato);
+    console.log('  - contrato:', registroInicial.contrato);
+    console.log('  - numeroContrato:', registroInicial.numeroContrato);
+    console.log('  - contract_number:', registroInicial.contract_number);
+    
+    const contrato = registroInicial.numero_contrato ||  // PRIORIZAR ESTE CAMPO
+                    registroInicial.contrato || 
+                    registroInicial.numeroContrato ||
+                    registroInicial.contract_number ||
+                    'SIN_CONTRATO';
+                    
+    const contratista = registroInicial.contratista || registroInicial.contractor || 'SIN_CONTRATISTA';
+    const valor = registroInicial.valor || registroInicial.valor_contrato || registroInicial.contract_value || 0;
+    const objeto = registroInicial.objeto || registroInicial.contract_object || 'SIN_OBJETO';
 
-    console.log('📋 Contrato encontrado:', contrato);
+    console.log('📋 Datos extraídos FINALES:');
+    console.log('📋 - Contrato final:', contrato);
+    console.log('📋 - Contratista final:', contratista);
+    console.log('📋 - Valor final:', valor);
+    console.log('📋 - Objeto final:', objeto);
 
     // 3. Obtener todas las respuestas del registro original
     const { data: todasLasRespuestas, error: respuestasError } = await supabase

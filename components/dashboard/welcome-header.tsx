@@ -1,6 +1,6 @@
 "use client"
 
-import { useAuth } from "@/context/auth-context"
+import { useAuth } from "@/context"
 import { motion } from "framer-motion"
 
 export function WelcomeHeader() {

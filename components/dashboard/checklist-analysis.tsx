@@ -341,8 +341,8 @@ export function ChecklistAnalysis() {
   return (
     <Card className="dashboard-card col-span-full">
       <CardHeader>
-        <CardTitle>Lista de Chequeo Contractual</CardTitle>
-        <CardDescription>{safeListaChequeoData.titulo}</CardDescription>
+        <CardTitle className="text-lg">Lista de Chequeo Contractual</CardTitle>
+        <CardDescription className="text-sm">{safeListaChequeoData.titulo}</CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">

@@ -144,7 +144,7 @@ export function DocumentManager() {
     <div className="container py-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Gestión de Documentos</h1>
+          <h1 className="text-xl font-semibold">Gestión de Documentos</h1>
           <p className="text-muted-foreground">Administra los documentos de tu sistema educativo.</p>
         </div>
 
@@ -186,9 +186,9 @@ export function DocumentManager() {
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
-              <TabsTrigger value="preContractual">Documentos Pre Contractuales</TabsTrigger>
-              <TabsTrigger value="execution">Documentos de Ejecución Contractual</TabsTrigger>
-              <TabsTrigger value="closure">Documentos de Cierre Contractual</TabsTrigger>
+              <TabsTrigger value="preContractual" className="text-xs">Documentos Pre Contractuales</TabsTrigger>
+              <TabsTrigger value="execution" className="text-xs">Documentos de Ejecución Contractual</TabsTrigger>
+              <TabsTrigger value="closure" className="text-xs">Documentos de Cierre Contractual</TabsTrigger>
             </TabsList>
 
             <TabsContent value="preContractual" className="mt-0 space-y-6">

@@ -2,9 +2,9 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/context/auth-context"
+import { useAuth } from "@/context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,13 +13,42 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, LogIn, User, Lock } from "lucide-react"
 import { motion } from "framer-motion"
 
+// Utilidad para detectar rate limiting
+const isRateLimitError = (error: any): boolean => {
+  if (!error || !error.message) return false
+  const message = error.message.toLowerCase()
+  return message.includes('rate limit') || 
+         message.includes('too many requests') ||
+         message.includes('too many') ||
+         (error as any).status === 429
+}
+
 export function LoginForm() {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [rateLimited, setRateLimited] = useState(false)
+  const [countdown, setCountdown] = useState(0)
   const { login } = useAuth()
   const router = useRouter()
+
+  // Effect para manejar el countdown del rate limit
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    if (countdown > 0) {
+      interval = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            setRateLimited(false)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+    return () => clearInterval(interval)
+  }, [countdown])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,8 +81,10 @@ export function LoginForm() {
           errorMessage = "Credenciales inválidas. Verifique su correo y contraseña."
         } else if (message.includes("email not confirmed")) {
           errorMessage = "Debe confirmar su correo electrónico antes de iniciar sesión."
-        } else if (message.includes("too many requests")) {
-          errorMessage = "Demasiados intentos. Espere unos minutos antes de intentar nuevamente."
+        } else if (isRateLimitError(err)) {
+          errorMessage = "Demasiados intentos. Espere antes de intentar nuevamente."
+          setRateLimited(true)
+          setCountdown(30) // 30 segundos de espera
         } else if (message.includes("network")) {
           errorMessage = "Error de conexión. Verifique su conexión a internet."
         } else if (message.includes("user not found")) {
@@ -121,12 +152,17 @@ export function LoginForm() {
           <Button
             type="submit"
             className="w-full bg-orange-500 hover:bg-orange-600 text-white font-poppins"
-            disabled={loading}
+            disabled={loading || rateLimited}
           >
             {loading ? (
               <div className="flex items-center">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2"></div>
                 <span>Verificando credenciales...</span>
+              </div>
+            ) : rateLimited ? (
+              <div className="flex items-center">
+                <AlertCircle className="mr-2 h-4 w-4" />
+                <span>Espere {countdown}s</span>
               </div>
             ) : (
               <div className="flex items-center">

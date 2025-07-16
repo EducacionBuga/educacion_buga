@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/context/auth-context"
+import { useAuth } from "@/context"
 
 interface RoleGuardProps {
   children: React.ReactNode

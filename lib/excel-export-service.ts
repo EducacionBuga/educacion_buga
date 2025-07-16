@@ -140,11 +140,32 @@ export class ExcelExportService {
    * Llena los datos del contrato en el encabezado
    */
   private static llenarEncabezadoContrato(worksheet: ExcelJS.Worksheet, contratoInfo: any) {
+    console.log('� [EXCEL-SERVICE] Aplicando datos del contrato:', {
+      contrato: contratoInfo.contrato,
+      contratista: contratoInfo.contratista,
+      valor: contratoInfo.valor
+    });
+    
     // Obtener el texto actual de la celda de número de contrato y concatenar
     const celdaNumeroContrato = worksheet.getCell('A7');
-    const textoActualContrato = celdaNumeroContrato.value?.toString() || 'NUMERO DE CONTRATO:';
-    if (!textoActualContrato.includes(contratoInfo.contrato)) {
-      celdaNumeroContrato.value = `${textoActualContrato} ${contratoInfo.contrato}`;
+    let textoActualContrato = celdaNumeroContrato.value?.toString() || 'NUMERO DE CONTRATO:';
+    
+    // Limpiar el texto actual si ya contiene datos previos
+    if (textoActualContrato.includes(' ') && textoActualContrato !== 'NUMERO DE CONTRATO:') {
+      textoActualContrato = 'NUMERO DE CONTRATO:';
+    }
+    
+    // Verificar si el contrato no es 'SIN_CONTRATO' y si no está ya incluido
+    if (contratoInfo.contrato && 
+        contratoInfo.contrato !== 'SIN_CONTRATO' && 
+        contratoInfo.contrato.trim() !== '' &&
+        !textoActualContrato.includes(contratoInfo.contrato)) {
+      const nuevoTexto = `${textoActualContrato} ${contratoInfo.contrato}`;
+      celdaNumeroContrato.value = nuevoTexto;
+      console.log('✅ [EXCEL-SERVICE] Número de contrato aplicado:', nuevoTexto);
+    } else {
+      console.log('⚠️ [EXCEL-SERVICE] No se aplicó número de contrato - valor recibido:', contratoInfo.contrato);
+      celdaNumeroContrato.value = 'NUMERO DE CONTRATO: Sin contrato';
     }
     
     // Obtener el texto actual de la celda de contratista y concatenar
@@ -156,8 +177,13 @@ export class ExcelExportService {
     
     // Valor en la celda al lado de VALOR (mantener formato de moneda)
     const celdaValor = worksheet.getCell('D7');
+    console.log('🔍 [EXCEL-SERVICE] Valor a escribir:', contratoInfo.valor);
+    console.log('🔍 [EXCEL-SERVICE] Tipo del valor:', typeof contratoInfo.valor);
+    
     celdaValor.value = contratoInfo.valor;
     celdaValor.numFmt = '"$"#,##0.00'; // Formato de moneda
+    
+    console.log('🔍 [EXCEL-SERVICE] Valor después de escribir:', celdaValor.value);
   }
 
   /**
@@ -192,11 +218,7 @@ export class ExcelExportService {
           break;
       }
 
-      // Agregar observaciones si existe una columna para ello (ajustar según plantilla)
-      if (respuesta.observaciones) {
-        // Asumiendo que las observaciones van en la columna F
-        worksheet.getCell(`F${filaExcel}`).value = respuesta.observaciones;
-      }
+      // Las observaciones se mantienen solo en la base de datos, no se exportan al Excel
     });
   }
 

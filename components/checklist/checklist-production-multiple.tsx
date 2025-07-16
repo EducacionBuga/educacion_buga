@@ -113,12 +113,12 @@ export function ChecklistProductionMultiple({ areaId }: ChecklistProductionMulti
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 checklist-compact">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center compact-header">
         <div>
-          <h1 className="text-2xl font-bold">Lista de Chequeo Contractual</h1>
-          <p className="text-gray-600">Gestión integral por apartados contractuales</p>
+          <h1 className="text-lg font-semibold">Lista de Chequeo Contractual</h1>
+          <p className="text-sm text-gray-600">Gestión integral por apartados contractuales</p>
         </div>
         <div className="flex gap-2">
           {selectedRegistro && (

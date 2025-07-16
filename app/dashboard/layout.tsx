@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { useAuth } from "@/context/auth-context"
+import { useAuth } from "@/context"
 import { Header } from "@/components/layout/header"
 import { Button } from "@/components/ui/button"
 import { LogOut, Download } from "lucide-react"

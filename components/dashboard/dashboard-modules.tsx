@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useAuth } from "@/context/auth-context"
+import { useAuth } from "@/context"
 import Link from "next/link"
 import { Headphones, ClipboardList, BookOpen, Eye, Monitor, Users } from "lucide-react"
 

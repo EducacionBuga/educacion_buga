@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import type { Database } from "@/types/supabase-types"
-import { useAuth } from "@/context/auth-context"
+import { useAuth } from "@/context"
 import { useToast } from "@/hooks/use-toast"
 
 export type EstadoValidacion = "pendiente" | "aprobado" | "rechazado" | "en_revision"

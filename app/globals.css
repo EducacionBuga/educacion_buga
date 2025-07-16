@@ -134,3 +134,61 @@
     margin-top: 0 !important;
   }
 }
+
+/* Estilos compactos para mejorar la densidad visual */
+.compact-header h1 {
+  @apply text-lg font-semibold leading-tight;
+}
+
+.compact-header h2 {
+  @apply text-base font-medium leading-tight;
+}
+
+.compact-card-title {
+  @apply text-lg font-semibold leading-tight;
+}
+
+.compact-description {
+  @apply text-sm text-muted-foreground leading-tight;
+}
+
+.compact-badge {
+  @apply text-xs px-2 py-1;
+}
+
+/* Mejoras específicas para listas de chequeo */
+.checklist-compact .space-y-6 {
+  @apply space-y-4;
+}
+
+.checklist-compact .text-2xl {
+  @apply text-lg;
+}
+
+.checklist-compact .text-xl {
+  @apply text-base;
+}
+
+.checklist-compact .p-6 {
+  @apply p-4;
+}
+
+.checklist-compact .gap-6 {
+  @apply gap-4;
+}
+
+/* Pestañas más compactas */
+.compact-tabs [data-state="active"] {
+  font-size: 0.75rem !important;
+}
+
+.compact-tabs button {
+  padding: 0.5rem 0.75rem !important;
+  font-size: 0.75rem !important;
+}
+
+/* Estilos para hacer pestañas PRECONTRACTUAL más pequeñas */
+[role="tablist"] button {
+  font-size: 0.75rem;
+  padding: 0.5rem 0.75rem;
+}

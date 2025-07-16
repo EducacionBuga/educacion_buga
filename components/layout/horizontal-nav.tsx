@@ -7,7 +7,8 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Headphones, ClipboardList, BookOpen, Eye, Monitor, Users } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { useAuth } from "@/context/auth-context"
+import { useAuth } from "@/context"
+import { SessionStatus } from "@/components/auth/session-status"
 
 interface NavItemProps {
   href: string
@@ -105,6 +106,11 @@ export function HorizontalNav() {
               isActive={pathname.startsWith("/dashboard/talento-humano")}
             />
           )}
+        </div>
+        
+        {/* Estado de sesión */}
+        <div className="mt-2 flex justify-center">
+          <SessionStatus />
         </div>
       </div>
     </div>

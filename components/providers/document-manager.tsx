@@ -15,7 +15,7 @@ import type { Folder, Document, DocumentCategory } from "@/types/documents"
 import { FolderPlus, FileUp } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { SupabaseService } from "@/lib/supabase-service"
-import { useAuth } from "@/context/auth-context"
+import { useAuth } from "@/context"
 
 interface DocumentManagerProps {
   title: string
@@ -264,13 +264,13 @@ export function DocumentManager({
                 onValueChange={(value) => setActiveTab(value as DocumentCategory)}
               >
                 <TabsList className="mb-4 w-full justify-start">
-                  <TabsTrigger value="preContractual" className="flex-1 sm:flex-none">
+                  <TabsTrigger value="preContractual" className="flex-1 sm:flex-none text-xs">
                     Documentos Pre Contractuales
                   </TabsTrigger>
-                  <TabsTrigger value="execution" className="flex-1 sm:flex-none">
+                  <TabsTrigger value="execution" className="flex-1 sm:flex-none text-xs">
                     Ejecución Contractual
                   </TabsTrigger>
-                  <TabsTrigger value="closure" className="flex-1 sm:flex-none">
+                  <TabsTrigger value="closure" className="flex-1 sm:flex-none text-xs">
                     Cierre Contractual
                   </TabsTrigger>
                 </TabsList>

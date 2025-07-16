@@ -110,9 +110,9 @@ export function ListaChequeoDemo() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <FileText className="h-6 w-6" />
-              <CardTitle>Lista de Chequeo Contractual</CardTitle>
-              <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-300">
+              <FileText className="h-5 w-5" />
+              <CardTitle className="text-lg">Lista de Chequeo Contractual</CardTitle>
+              <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-300 text-xs">
                 MODO DEMO
               </Badge>
             </div>
@@ -190,10 +190,10 @@ export function ListaChequeoDemo() {
           {etapas.map((etapa) => {
             const progreso = getProgresoByEtapa(etapa.nombre)
             return (
-              <TabsTrigger key={etapa.id} value={etapa.nombre} className="relative">
-                <div className="flex items-center space-x-2">
-                  <span>{etapa.nombre}</span>
-                  <Badge variant={progreso.porcentaje === 100 ? "default" : "secondary"}>
+              <TabsTrigger key={etapa.id} value={etapa.nombre} className="relative text-xs">
+                <div className="flex items-center space-x-1">
+                  <span className="text-xs">{etapa.nombre}</span>
+                  <Badge variant={progreso.porcentaje === 100 ? "default" : "secondary"} className="text-xs scale-90">
                     {progreso.respondidos}/{progreso.total}
                   </Badge>
                 </div>
