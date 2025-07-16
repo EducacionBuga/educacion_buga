@@ -13,6 +13,10 @@ export function useExcelExport() {
   const { toast } = useToast()
 
   const exportarExcel = useCallback(async (options: ExportOptions) => {
+    console.log('❌❌❌ HOOK ANTIGUO DE EXPORTACIÓN LLAMADO ❌❌❌')
+    console.log('❌❌❌ STACK TRACE:', new Error().stack?.split('\n')[1])
+    console.log('❌❌❌ REGISTRO ID:', options.registroId)
+    
     setIsExporting(true)
     
     try {

@@ -330,6 +330,10 @@ export function useChecklistData(areaCode: string) {
 
   // Exportar a Excel
   const exportToExcel = useCallback(async (registroId?: string) => {
+    console.log('❌❌❌ USE-CHECKLIST-DATA EXPORT LLAMADO ❌❌❌')
+    console.log('❌❌❌ STACK TRACE:', new Error().stack?.split('\n')[1])
+    console.log('❌❌❌ REGISTRO ID:', registroId)
+    
     try {
       if (!registroId) {
         throw new Error('Se requiere el ID del registro para exportar')
