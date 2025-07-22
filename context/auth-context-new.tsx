@@ -43,7 +43,11 @@ const normalizeRole = (role: string | undefined | null): string => {
     'PLANEACION': 'PLANEACION',
     'SUPERVISOR': 'SUPERVISOR',
     'USER': 'USER',
-    'USUARIO': 'USER'
+    'USUARIO': 'USER',
+    'CALIDAD_EDUCATIVA': 'CALIDAD_EDUCATIVA',
+    'INSPECCION_VIGILANCIA': 'INSPECCION_VIGILANCIA',
+    'COBERTURA_INFRAESTRUCTURA': 'COBERTURA_INFRAESTRUCTURA',
+    'TALENTO_HUMANO': 'TALENTO_HUMANO'
   }
   
   return roleMapping[normalizedRole] || 'ADMIN'
@@ -67,11 +71,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single()
 
       if (userData) {
+        const normalizedRole = normalizeRole(userData.role || userData.tipo_usuario)
+        console.log('🔍 DEBUG - Datos del usuario obtenidos:', {
+          userId,
+          email,
+          rawRole: userData.role || userData.tipo_usuario,
+          normalizedRole,
+          userData: userData
+        })
+        
         return {
           id: userId,
           email: email,
           name: userData.name || userData.full_name || email.split('@')[0],
-          role: normalizeRole(userData.role || userData.tipo_usuario),
+          role: normalizedRole,
           area_id: userData.area_id,
           dependencia: userData.dependencia,
           created_at: userData.created_at,

@@ -15,11 +15,20 @@ export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
   const { user, isAuthenticated, loading } = useAuth()
   const router = useRouter()
 
+  // Debug log para verificar roles
+  console.log('🛡️ RoleGuard Debug:', {
+    userRole: user?.role,
+    allowedRoles,
+    hasAccess: user?.role ? allowedRoles.includes(user.role) : false,
+    isAuthenticated,
+    loading
+  })
+
   useEffect(() => {
     if (!loading) {
       if (!isAuthenticated) {
         router.push("/")
-      } else if (user && !allowedRoles.includes(user.role)) {
+      } else if (user?.role && !allowedRoles.includes(user.role)) {
         // Redirigir al dashboard principal si el usuario no tiene el rol permitido
         router.push("/dashboard")
       }
@@ -34,7 +43,7 @@ export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
     )
   }
 
-  if (!isAuthenticated || (user && !allowedRoles.includes(user.role))) {
+  if (!isAuthenticated || (user?.role && !allowedRoles.includes(user.role))) {
     return null
   }
 

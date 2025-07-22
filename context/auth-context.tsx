@@ -43,7 +43,11 @@ const normalizeRole = (role: string | undefined | null): string => {
     'PLANEACION': 'PLANEACION',
     'SUPERVISOR': 'SUPERVISOR',
     'USER': 'USER',
-    'USUARIO': 'USER'
+    'USUARIO': 'USER',
+    'CALIDAD_EDUCATIVA': 'CALIDAD_EDUCATIVA',
+    'INSPECCION_VIGILANCIA': 'INSPECCION_VIGILANCIA',
+    'COBERTURA_INFRAESTRUCTURA': 'COBERTURA_INFRAESTRUCTURA',
+    'TALENTO_HUMANO': 'TALENTO_HUMANO'
   }
   
   return roleMapping[normalizedRole] || 'ADMIN'
