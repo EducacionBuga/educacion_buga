@@ -146,7 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('supabase_session')
       localStorage.removeItem('user_data')
       
-      router.push('/login-test')
+      router.push('/')
     } catch (error) {
       console.error('Error en logout:', error)
     } finally {
