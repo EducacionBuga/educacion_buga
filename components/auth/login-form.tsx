@@ -58,13 +58,21 @@ export function LoginForm() {
     console.log("🔑 [STEP 1] Iniciando proceso de login...")
     console.log("📧 [STEP 2] Email ingresado:", username)
     console.log("🔐 [STEP 3] Password longitud:", password.length)
+    console.log("🌐 [STEP 4] URL actual:", window.location.href)
 
     try {
-      console.log("🚀 [STEP 4] Llamando función login del contexto...")
-      await login(username, password)
+      console.log("🚀 [STEP 5] Llamando función login del contexto...")
+      const result = await login(username, password)
+      
+      console.log("📊 [STEP 6] Resultado del login:", result)
 
-      console.log("✅ [STEP 5] Login exitoso, redirigiendo al dashboard...")
-      router.push("/dashboard")
+      if (result && result.success) {
+        console.log("✅ [STEP 7] Login exitoso, redirigiendo al dashboard...")
+        router.push("/dashboard")
+      } else {
+        console.log("❌ [STEP 7] Login falló, resultado:", result)
+        setError(result?.error || "Error al iniciar sesión")
+      }
     } catch (err) {
       console.error("❌ [ERROR] Error en el login:", err)
       console.error("🔍 [DEBUG] Tipo de error:", typeof err)
