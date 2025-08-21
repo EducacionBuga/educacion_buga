@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
             exists: true,
             size: stats.size,
             modified: stats.mtime,
-            readable: fs.constants.R_OK
+            readable: true
           };
         } else {
           diagnostics.templateChecks[templatePath] = {
@@ -52,93 +52,119 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Verificar módulos de Node.js
-    const modules = ['exceljs', '@supabase/supabase-js', 'path', 'fs'];
-    for (const moduleName of modules) {
-      try {
-        await import(moduleName);
-        diagnostics.moduleChecks[moduleName] = { available: true };
-      } catch (error) {
-        diagnostics.moduleChecks[moduleName] = {
-          available: false,
-          error: error instanceof Error ? error.message : 'Import error'
-        };
-      }
+    const moduleChecks: Record<string, any> = {};
+    
+    // Verificar exceljs
+    try {
+      await import('exceljs');
+      moduleChecks['exceljs'] = { available: true };
+    } catch (error) {
+      moduleChecks['exceljs'] = {
+        available: false,
+        error: error instanceof Error ? error.message : 'Import error'
+      };
     }
+    
+    // Verificar @supabase/supabase-js
+    try {
+      await import('@supabase/supabase-js');
+      moduleChecks['@supabase/supabase-js'] = { available: true };
+    } catch (error) {
+      moduleChecks['@supabase/supabase-js'] = {
+        available: false,
+        error: error instanceof Error ? error.message : 'Import error'
+      };
+    }
+    
+    // Módulos nativos siempre disponibles
+    moduleChecks['path'] = { available: true, native: true };
+    moduleChecks['fs'] = { available: true, native: true };
+    
+    diagnostics.moduleChecks = moduleChecks;
 
     // 3. Verificar servicios propios
-    const services = [
-      '@/lib/excel-export-service',
-      '@/lib/supabase-client-production'
-    ];
+    try {
+      await import('@/lib/excel-export-service');
+      diagnostics.moduleChecks['@/lib/excel-export-service'] = { available: true };
+    } catch (error) {
+      diagnostics.moduleChecks['@/lib/excel-export-service'] = {
+        available: false,
+        error: error instanceof Error ? error.message : 'Import error'
+      };
+    }
     
-    for (const serviceName of services) {
-      try {
-        await import(serviceName);
-        diagnostics.moduleChecks[serviceName] = { available: true };
-      } catch (error) {
-        diagnostics.moduleChecks[serviceName] = {
-          available: false,
-          error: error instanceof Error ? error.message : 'Import error'
-        };
-      }
+    try {
+      await import('@/lib/supabase-client-production');
+      diagnostics.moduleChecks['@/lib/supabase-client-production'] = { available: true };
+    } catch (error) {
+      diagnostics.moduleChecks['@/lib/supabase-client-production'] = {
+        available: false,
+        error: error instanceof Error ? error.message : 'Import error'
+      };
     }
 
     // 4. Verificar variables de entorno
-    const envVars = [
-      'NEXT_PUBLIC_SUPABASE_URL',
-      'SUPABASE_SERVICE_ROLE_KEY',
-      'SUPABASE_ANON_KEY',
-      'NODE_ENV'
-    ];
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const anonKey = process.env.SUPABASE_ANON_KEY;
+    const nodeEnv = process.env.NODE_ENV;
 
-    diagnostics.environment = {};
-    for (const envVar of envVars) {
-      const value = process.env[envVar];
-      if (value) {
-        diagnostics.environment[envVar] = {
-          exists: true,
-          length: value.length,
-          preview: value.substring(0, 20) + '...'
-        };
-      } else {
-        diagnostics.environment[envVar] = { exists: false };
-      }
-    }
+    diagnostics.environment = {
+      'NEXT_PUBLIC_SUPABASE_URL': supabaseUrl ? {
+        exists: true,
+        length: supabaseUrl.length,
+        preview: supabaseUrl.substring(0, 20) + '...'
+      } : { exists: false },
+      'SUPABASE_SERVICE_ROLE_KEY': serviceKey ? {
+        exists: true,
+        length: serviceKey.length,
+        preview: serviceKey.substring(0, 20) + '...'
+      } : { exists: false },
+      'SUPABASE_ANON_KEY': anonKey ? {
+        exists: true,
+        length: anonKey.length,
+        preview: anonKey.substring(0, 20) + '...'
+      } : { exists: false },
+      'NODE_ENV': nodeEnv ? {
+        exists: true,
+        value: nodeEnv
+      } : { exists: false }
+    };
 
     // 5. Verificar estructura de directorios
-    const directories = [
-      'public',
-      'public/document',
-      'lib',
-      'app/api',
-      'app/api/lista-chequeo',
-      'app/api/lista-chequeo/export'
-    ];
-
-    for (const dir of directories) {
+    const checkDirectory = (dir: string) => {
       const fullPath = path.join(process.cwd(), dir);
       try {
         const exists = fs.existsSync(fullPath);
         if (exists) {
           const stats = fs.statSync(fullPath);
-          diagnostics.pathChecks[dir] = {
+          return {
             exists: true,
             isDirectory: stats.isDirectory(),
             fullPath
           };
         } else {
-          diagnostics.pathChecks[dir] = {
+          return {
             exists: false,
             fullPath
           };
         }
       } catch (error) {
-        diagnostics.pathChecks[dir] = {
+        return {
           error: error instanceof Error ? error.message : 'Error checking directory',
           fullPath
         };
       }
-    }
+    };
+
+    diagnostics.pathChecks = {
+      'public': checkDirectory('public'),
+      'public/document': checkDirectory('public/document'),
+      'lib': checkDirectory('lib'),
+      'app/api': checkDirectory('app/api'),
+      'app/api/lista-chequeo': checkDirectory('app/api/lista-chequeo'),
+      'app/api/lista-chequeo/export': checkDirectory('app/api/lista-chequeo/export')
+    };
 
     // 6. Intentar cargar ExcelJS y verificar la plantilla
     try {
