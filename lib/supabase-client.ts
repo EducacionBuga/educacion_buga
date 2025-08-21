@@ -53,7 +53,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Crear una única instancia del cliente para reutilizarla
 let supabaseInstance: SupabaseClient | null = null
 
-// Crear cliente con clave anónima (para uso en el cliente)
+// Crear cliente con clave anónima (para uso en el cliente) - Optimizado
 export const createClient = () => {
   if (!supabaseInstance) {
     supabaseInstance = createSupabaseClient(supabaseUrl || "", supabaseAnonKey || "", {
@@ -61,19 +61,33 @@ export const createClient = () => {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
-        flowType: 'pkce'
+        flowType: 'pkce',
+        // Optimizaciones de timeout para producción
+        storageKey: 'sb-auth-token',
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined
       },
       db: {
         schema: 'public'
       },
       global: {
         headers: {
-          'X-Client-Info': 'supabase-js-web'
+          'X-Client-Info': 'sistema-educativo-web',
+          'X-Client-Version': '1.0.0'
+        },
+        // Configuración de fetch optimizada
+        fetch: (url, options = {}) => {
+          return fetch(url, {
+            ...options,
+            // Timeout de 15 segundos para consultas
+            signal: AbortSignal.timeout(15000)
+          })
         }
       },
       realtime: {
-        timeout: 20000,
-        heartbeatIntervalMs: 30000
+        timeout: 15000,
+        heartbeatIntervalMs: 25000,
+        // Reducir reconexiones automáticas para mejor rendimiento
+        reconnectAfterMs: (tries) => Math.min(tries * 1000, 10000)
       }
     })
   }

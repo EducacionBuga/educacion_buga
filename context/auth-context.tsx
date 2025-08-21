@@ -183,7 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.user && data.session) {
         console.log('✅ Login exitoso')
         
-        // Usar función de BD para obtener datos del usuario (lógica centralizada)
+        // Usar función de BD optimizada para obtener datos del usuario
         console.log('🔍 Consultando usuario con función BD get_user_role:', {
           userId: data.user.id,
           email: data.user.email
@@ -193,7 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .rpc('get_user_role', { user_id: data.user.id })
           .single()
         
-        console.log('📋 Resultado consulta profiles:', {
+        console.log('📋 Resultado consulta get_user_role:', {
           userProfile,
           profileError: profileError?.message,
           hasProfile: !!userProfile
@@ -201,27 +201,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         let userRole = 'USER'
         let userName = data.user.email!.split('@')[0]
+        let userArea = null
+        let userDependencia = null
         
         if (userProfile && !profileError) {
           // Usar directamente los datos de la función BD (ya normalizados)
-          userRole = userProfile.role || 'USER'  // La función BD ya maneja la lógica
+          userRole = userProfile.role || 'USER'
           userName = userProfile.full_name || userName
+          userArea = userProfile.area_id
+          userDependencia = userProfile.dependencia
           
           console.log('✅ Usuario desde función BD get_user_role:', {
             email: data.user.email,
             role: userRole,
             is_admin: userProfile.is_admin,
             full_name: userProfile.full_name,
-            source: 'BD_FUNCTION'
+            area_id: userProfile.area_id,
+            source: 'RPC_FUNCTION'
           })
         } else {
-          // Fallback a user_metadata si no existe en tabla usuarios
+          // Fallback a user_metadata si la función RPC falla
           userRole = data.user.user_metadata?.role || data.user.app_metadata?.role || 'USER'
           userName = data.user.user_metadata?.full_name || userName
           userArea = data.user.user_metadata?.area
           userDependencia = data.user.user_metadata?.area
           
-          console.log('❌ Usuario NO encontrado en profiles:', {
+          console.log('⚠️ Fallback a user_metadata:', {
             email: data.user.email,
             userId: data.user.id,
             error: profileError?.message,
@@ -366,11 +371,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('📱 Sesión encontrada en Supabase')
           setSession(currentSession)
           
-          // Consultar datos del usuario desde la tabla profiles
+          // Usar función RPC optimizada para obtener datos del usuario
           const { data: userProfile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', currentSession.user.id)
+            .rpc('get_user_role', { user_id: currentSession.user.id })
             .single()
           
           let userRole = 'USER'
@@ -379,14 +382,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           let userDependencia = null
           
           if (userProfile && !profileError) {
-              // Mapear rol de BD a rol del sistema
-              const dbRole = userProfile.role || 'user'
-              userRole = mapDatabaseRoleToSystemRole(dbRole, currentSession.user.email!)
+              // Usar datos ya normalizados de la función RPC
+              userRole = userProfile.role || 'USER'
               userName = userProfile.full_name || userName
-              userArea = userProfile.area || null
+              userArea = userProfile.area_id || null
               userDependencia = userProfile.dependencia || null
             } else {
-            // Fallback a user_metadata si no existe en tabla usuarios
+            // Fallback a user_metadata si la función RPC falla
             userRole = currentSession.user.user_metadata?.role || currentSession.user.app_metadata?.role || 'USER'
             userName = currentSession.user.user_metadata?.full_name || userName
             userArea = currentSession.user.user_metadata?.area
@@ -434,11 +436,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('🔄 Auth state change:', event)
 
       if (event === 'SIGNED_IN' && session) {
-        // Consultar datos del usuario desde la tabla profiles
+        // Usar función RPC optimizada para obtener datos del usuario
          const { data: userProfile, error: profileError } = await supabase
-           .from('profiles')
-           .select('*')
-           .eq('id', session.user.id)
+           .rpc('get_user_role', { user_id: session.user.id })
            .single()
         
         let userRole = 'USER'
@@ -447,14 +447,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         let userDependencia = null
         
         if (userProfile && !profileError) {
-             // Mapear rol de BD a rol del sistema
-             const dbRole = userProfile.role || 'user'
-             userRole = mapDatabaseRoleToSystemRole(dbRole, session.user.email!)
+             // Usar datos ya normalizados de la función RPC
+             userRole = userProfile.role || 'USER'
              userName = userProfile.full_name || userName
-             userArea = userProfile.area || null
+             userArea = userProfile.area_id || null
              userDependencia = userProfile.dependencia || null
            } else {
-           // Fallback a user_metadata si no existe en tabla usuarios
+           // Fallback a user_metadata si la función RPC falla
            userRole = session.user.user_metadata?.role || session.user.app_metadata?.role || 'USER'
            userName = session.user.user_metadata?.full_name || userName
            userArea = session.user.user_metadata?.area

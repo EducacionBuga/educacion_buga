@@ -18,10 +18,10 @@ export async function middleware(req: NextRequest) {
     // Crear cliente de Supabase
     const supabase = createMiddlewareClient({ req, res })
     
-    // Verificar sesión con timeout reducido
+    // Verificar sesión con timeout optimizado para producción
     const sessionPromise = supabase.auth.getSession()
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Session check timeout')), 2000) // 2 segundos
+      setTimeout(() => reject(new Error('Session check timeout')), 5000) // 5 segundos para producción
     })
 
     const { data: { session } } = await Promise.race([
