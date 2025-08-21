@@ -33,11 +33,15 @@ import { getColorClass } from "@/utils/areas"
 import type { PlanAccionItem } from "@/types/plan-accion"
 import { useDebouncedSearch } from "@/hooks/use-debounced-search"
 import { usePlanAccionService } from "@/hooks/use-plan-accion-service"
+import { useOptimizedStats } from "@/hooks/use-optimized-stats"
 import { PlanAccionRow } from "@/components/plan-accion/plan-accion-row"
 import { PlanAccionToolbar } from "@/components/plan-accion/plan-accion-toolbar"
 import { PlanAccionSummary } from "@/components/plan-accion/plan-accion-summary"
 import { PlanAccionAddDialog } from "@/components/plan-accion/plan-accion-add-dialog"
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { LoadingProgress } from "@/components/ui/loading-progress"
+import { PaginationControls } from "@/components/ui/pagination-controls"
+import { usePagination } from "@/hooks/use-pagination"
 import Papa from "papaparse"
 import * as XLSX from 'xlsx'
 
@@ -75,7 +79,6 @@ export default function PlanAccionAreaMejorado({
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<"add" | "edit">("add")
   const [editingItem, setEditingItem] = useState<PlanAccionItem | null>(null)
-  const [isLoadingTooLong, setIsLoadingTooLong] = useState(false)
   const [viewMode, setViewMode] = useState<"table" | "cards">("cards")
   const [searchTerm, setSearchTerm] = useState("")
   const [estadoFilter, setEstadoFilter] = useState("todos")
@@ -84,8 +87,49 @@ export default function PlanAccionAreaMejorado({
   const dataFetchedRef = useRef(false)
 
   // Hooks personalizados
-  const { isLoading, error, areaId, addPlanAccion, updatePlanAccion, deletePlanAccion, loadPlanesAccion } =
-    usePlanAccionService(area)
+  const { 
+    isLoading, 
+    error, 
+    areaId, 
+    addPlanAccion, 
+    updatePlanAccion, 
+    deletePlanAccion, 
+    loadPlanesAccion,
+    progress,
+    stage,
+    isLoadingTooLong,
+    retryCount,
+    retry
+  } = usePlanAccionService(area)
+  
+  // Hook optimizado para estadísticas
+  const { 
+    stats: optimizedStats, 
+    isLoading: statsLoading, 
+    refresh: refreshStats 
+  } = useOptimizedStats(areaId)
+  
+  // Hook de paginación (solo se activa cuando hay muchos elementos)
+  const shouldUsePagination = planAccionItems.length > 50
+  const {
+    data: paginatedData,
+    pagination,
+    isLoading: paginationLoading,
+    goToPage,
+    setPageSize,
+    refresh: refreshPagination
+  } = usePagination<PlanAccionItem>(
+    'plan_accion',
+    { area_id: areaId },
+    {
+      initialPageSize: 20,
+      useCache: true,
+      prefetchAdjacent: true
+    }
+  )
+  
+  // Usar datos paginados o todos los datos según el caso
+  const displayData = shouldUsePagination ? paginatedData : planAccionItems
 
   // Debug: monitorear estado del modal
   useEffect(() => {
@@ -107,7 +151,8 @@ export default function PlanAccionAreaMejorado({
 
   // Filtrar datos según los criterios
   const filteredData = useMemo(() => {
-    return planAccionItems.filter((item) => {
+    const dataToFilter = shouldUsePagination ? displayData : planAccionItems
+    return dataToFilter.filter((item) => {
       // Filtro de búsqueda
       const matchesSearch =
         searchTerm === "" ||
@@ -120,10 +165,16 @@ export default function PlanAccionAreaMejorado({
 
       return matchesSearch && matchesEstado
     })
-  }, [planAccionItems, searchTerm, estadoFilter])
+  }, [planAccionItems, displayData, shouldUsePagination, searchTerm, estadoFilter])
 
-  // Calcular estadísticas
+  // Usar estadísticas optimizadas o calcular localmente como fallback
   const stats = useMemo(() => {
+    // Si tenemos estadísticas optimizadas y no están cargando, usarlas
+    if (!statsLoading && optimizedStats && optimizedStats.total > 0) {
+      return optimizedStats
+    }
+    
+    // Fallback: calcular estadísticas localmente para datos filtrados
     if (isLoading || !filteredData || filteredData.length === 0) {
       return {
         total: 0,
@@ -159,7 +210,7 @@ export default function PlanAccionAreaMejorado({
       presupuestoTotal,
       avancePromedio
     }
-  }, [filteredData, isLoading])
+  }, [filteredData, isLoading, optimizedStats, statsLoading])
 
   // Cargar datos iniciales solo una vez
   useEffect(() => {
@@ -185,18 +236,7 @@ export default function PlanAccionAreaMejorado({
     }
   }, [planAccionItems, onItemsChange])
 
-  // Manejar timeout de carga larga
-  useEffect(() => {
-    if (isLoading) {
-      const timer = setTimeout(() => {
-        setIsLoadingTooLong(true)
-      }, 10000) // 10 segundos
-
-      return () => clearTimeout(timer)
-    } else {
-      setIsLoadingTooLong(false)
-    }
-  }, [isLoading])
+  // El timeout de carga larga ahora se maneja en usePlanAccionService
 
   // Handlers
   const handleAddItem = useCallback(async (newItem: Omit<PlanAccionItem, "id">) => {
@@ -204,11 +244,13 @@ export default function PlanAccionAreaMejorado({
       const savedItem = await addPlanAccion(newItem as PlanAccionItem)
       if (savedItem) {
         setPlanAccionItems(prev => [...prev, savedItem])
+        // Refrescar estadísticas optimizadas
+        refreshStats()
       }
     } catch (error) {
       console.error("Error al añadir elemento:", error)
     }
-  }, [addPlanAccion])
+  }, [addPlanAccion, refreshStats])
 
   const handleEditItem = useCallback((item: PlanAccionItem) => {
     console.log("🔄 EDITANDO ITEM:", item.programa, item.id)
@@ -237,20 +279,24 @@ export default function PlanAccionAreaMejorado({
         setIsDialogOpen(false)
         setEditingItem(null)
         setDialogMode("add")
+        // Refrescar estadísticas optimizadas
+        refreshStats()
       }
     } catch (error) {
       console.error("Error al actualizar elemento:", error)
     }
-  }, [updatePlanAccion])
+  }, [updatePlanAccion, refreshStats])
 
   const handleDeleteItem = useCallback(async (id: string) => {
     try {
       await deletePlanAccion(id)
       setPlanAccionItems(prev => prev.filter(item => item.id !== id))
+      // Refrescar estadísticas optimizadas
+      refreshStats()
     } catch (error) {
       console.error("Error al eliminar elemento:", error)
     }
-  }, [deletePlanAccion])
+  }, [deletePlanAccion, refreshStats])
 
   const handleClearFilters = () => {
     setSearchTerm("")
@@ -639,20 +685,46 @@ export default function PlanAccionAreaMejorado({
     )
   }
 
-  // Mostrar estado de carga
+  // Mostrar estado de carga con indicador mejorado
   if (isLoading) {
     return (
       <div className="space-y-6">
+        {/* Header del módulo */}
+        <Card className="w-full">
+          <CardHeader className={`pb-3 ${colorClasses} bg-opacity-10 border-l-4 border-l-primary`}>
+            <div className="flex items-center gap-4">
+              <div className={`rounded-lg p-3 ${colorClasses}`}>
+                <FileSpreadsheet className="h-6 w-6" />
+              </div>
+              <div>
+                <CardTitle className="text-xl text-gray-900">{title}</CardTitle>
+                {description && <CardDescription className="text-foreground/70 mt-1">{description}</CardDescription>}
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+
+        {/* Indicador de progreso mejorado */}
+        <LoadingProgress
+          isLoading={isLoading}
+          progress={progress}
+          stage={stage}
+          isLoadingTooLong={isLoadingTooLong}
+          retryCount={retryCount}
+          error={error}
+          onRetry={retry}
+        />
+
         {/* Dashboard de estadísticas - skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i}>
+            <Card key={i} className="animate-pulse">
               <CardContent className="p-6">
                 <div className="flex items-center">
-                  <div className="h-12 w-12 bg-gray-200 rounded-lg animate-pulse" />
+                  <div className="h-12 w-12 bg-gray-200 rounded-lg" />
                   <div className="ml-4 space-y-2">
-                    <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
-                    <div className="h-6 w-16 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-4 w-20 bg-gray-200 rounded" />
+                    <div className="h-6 w-16 bg-gray-200 rounded" />
                   </div>
                 </div>
               </CardContent>
@@ -660,39 +732,48 @@ export default function PlanAccionAreaMejorado({
           ))}
         </div>
         
-        <div className="text-center py-4">
-          <p className="text-gray-500">Cargando plan de acción...</p>
-          {isLoadingTooLong && (
-            <div className="mt-4">
-              <p className="text-sm text-red-500 mb-2">La carga está tardando más de lo esperado.</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-primary text-white rounded-md text-sm"
-              >
-                Recargar página
-              </button>
+        {/* Skeleton para contenido principal */}
+        <Card className="animate-pulse">
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <div className="h-4 w-1/4 bg-gray-200 rounded" />
+              <div className="h-32 bg-gray-200 rounded" />
             </div>
-          )}
-        </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   // Mostrar estado de error
-  if (error) {
+  if (error && !isLoading) {
     return (
-      <Card className="w-full">
-        <CardHeader className={`pb-3 ${colorClasses} bg-opacity-10`}>
-          <CardTitle>{title}</CardTitle>
-          {description && <CardDescription className="text-foreground/70">{description}</CardDescription>}
-        </CardHeader>
-        <CardContent className="p-6">
-          <Alert variant="destructive">
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        {/* Header del módulo */}
+        <Card className="w-full">
+          <CardHeader className={`pb-3 ${colorClasses} bg-opacity-10 border-l-4 border-l-primary`}>
+            <div className="flex items-center gap-4">
+              <div className={`rounded-lg p-3 ${colorClasses}`}>
+                <FileSpreadsheet className="h-6 w-6" />
+              </div>
+              <div>
+                <CardTitle className="text-xl text-gray-900">{title}</CardTitle>
+                {description && <CardDescription className="text-foreground/70 mt-1">{description}</CardDescription>}
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+
+        {/* Indicador de error mejorado */}
+        <LoadingProgress
+          isLoading={false}
+          progress={0}
+          stage="Error"
+          error={error}
+          onRetry={retry}
+          retryCount={retryCount}
+        />
+      </div>
     )
   }
 
@@ -982,6 +1063,28 @@ export default function PlanAccionAreaMejorado({
 
             {/* Resumen de datos */}
             <PlanAccionSummary items={planAccionItems} />
+          </div>
+        )}
+
+        {/* Controles de paginación (solo cuando hay muchos elementos) */}
+        {shouldUsePagination && (
+          <div className="mt-6">
+            <PaginationControls
+              pagination={{
+                currentPage: pagination.currentPage,
+                totalPages: pagination.totalPages,
+                totalItems: pagination.totalItems,
+                itemsPerPage: pagination.pageSize,
+                hasNextPage: pagination.hasNextPage,
+                hasPreviousPage: pagination.hasPreviousPage
+              }}
+              onPageChange={goToPage}
+              onPageSizeChange={setPageSize}
+              isLoading={paginationLoading}
+              showItemInfo={true}
+              showPageSizeSelector={true}
+              showQuickNavigation={true}
+            />
           </div>
         )}
 

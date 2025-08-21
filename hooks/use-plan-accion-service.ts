@@ -1,9 +1,13 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { toast } from "@/components/ui/use-toast"
 import type { PlanAccionItem } from "@/types/plan-accion"
+import { withRetry, RETRY_CONFIGS } from "@/lib/retry-manager"
+import { useMultiStageLoading } from "@/hooks/use-loading-state"
+import { queryPlanAccion, queryStats, FULL_FIELDS, STATS_FIELDS, clearTableCache } from "@/lib/optimized-queries"
+import { handleError, withErrorHandling } from "@/lib/error-handler"
 
 // Función para asegurar que las fechas sean válidas y estén en formato ISO
 function ensureValidDate(dateStr: string): string {
@@ -55,17 +59,43 @@ function formatDate(dateString: string | null): string {
 
 export function usePlanAccionService(areaSlug: string) {
   const [items, setItems] = useState<PlanAccionItem[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
   const [areaId, setAreaId] = useState<string | null>(null)
   const [areaName, setAreaName] = useState<string>("")
   const supabase = createClientComponentClient()
+  
+  // Estados de carga mejorados con múltiples etapas
+  const loadingStages = [
+    "Conectando a la base de datos...",
+    "Verificando autenticación...",
+    "Obteniendo información del área...",
+    "Cargando planes de acción...",
+    "Procesando datos..."
+  ]
+  
+  const {
+    isLoading,
+    error,
+    progress,
+    stage,
+    isLoadingTooLong,
+    retryCount,
+    startLoading,
+    updateProgress,
+    setError,
+    finishLoading,
+    nextStage,
+    retry: retryLoading
+  } = useMultiStageLoading(loadingStages, {
+    slowLoadingThreshold: 8000,
+    showProgressToast: true,
+    slowLoadingMessage: "La carga de datos está tardando más de lo esperado. Esto puede deberse a una conexión lenta o alta carga del servidor."
+  })
 
   // Obtener el ID del área desde Supabase
   useEffect(() => {
     async function fetchAreaId() {
       try {
-        setIsLoading(true)
+        startLoading()
 
         // Si el areaSlug ya es un UUID, asumimos que es el ID directamente
         if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(areaSlug)) {
@@ -140,16 +170,23 @@ export function usePlanAccionService(areaSlug: string) {
         }
       } catch (err: any) {
         console.error("Error al obtener el ID del área:", err)
-        setError(err instanceof Error ? err : new Error(err.message || "Error desconocido"))
+        
+        const userFriendlyError = handleError(err, {
+          operation: 'Obtener ID del área',
+          module: 'Plan de Acción',
+          metadata: { areaSlug }
+        })
+        
+        setError(userFriendlyError.description)
       } finally {
-        setIsLoading(false)
+        finishLoading()
       }
     }
 
     fetchAreaId()
   }, [areaSlug, supabase])
 
-  // Cargar planes de acción
+  // Cargar planes de acción con retry y progreso
   const loadPlanesAccion = useCallback(async () => {
     if (!areaId) {
       console.log("No se puede cargar planes de acción sin ID de área")
@@ -157,48 +194,25 @@ export function usePlanAccionService(areaSlug: string) {
     }
 
     try {
-      setIsLoading(true)
       console.log(`Cargando planes de acción para área ID: ${areaId}`)
-
+      
+      // Consulta simple y directa como antes
       const { data, error } = await supabase
         .from("plan_accion")
-        .select(`
-          id, 
-          programa,
-          objetivo,
-          meta,
-          presupuesto,
-          acciones,
-          indicadores,
-          porcentaje_avance,
-          fecha_inicio,
-          fecha_fin,
-          responsable,
-          estado,
-          prioridad,
-          comentarios,
-          meta_docenal,
-          macroobjetivo_docenal,
-          objetivo_docenal,
-          programa_pdm,
-          subprograma_pdm,
-          proyecto_pdm,
-          grupo_etareo,
-          grupo_poblacion,
-          zona,
-          grupo_etnico,
-          cantidad
-        `)
+        .select("*")
         .eq("area_id", areaId)
         .order("created_at", { ascending: false })
-
+      
       if (error) {
         console.error("Error cargando planes de acción:", error)
-        throw new Error(`Error cargando planes de acción: ${error.message}`)
+        throw error
       }
-
-      console.log(`Planes de acción cargados: ${data?.length || 0}`)
-
+      
+      if (!data) {
+        console.log("No se encontraron datos")
+        return []
+      }
+      
       // Transformar datos al formato esperado por la aplicación
       const formattedItems: PlanAccionItem[] = (data || []).map((item) => ({
         id: item.id,
@@ -234,25 +248,22 @@ export function usePlanAccionService(areaSlug: string) {
       setItems(formattedItems)
       return formattedItems
     } catch (err: any) {
-      console.error("Error en loadPlanesAccion:", err)
-      setError(err instanceof Error ? err : new Error(err.message || "Error desconocido"))
-      toast({
-        title: "Error al cargar planes de acción",
-        description: err.message || "Ocurrió un error al cargar los datos",
-        variant: "destructive",
-      })
-      return []
-    } finally {
-      setIsLoading(false)
+      console.error("Error cargando planes de acción:", err)
+      setError(err.message || "Error cargando datos")
+      throw err
     }
-  }, [areaId, supabase])
+  }, [areaId, supabase, setError, setItems]) // Simplificado para funcionar como antes
+
+  // Usar useRef para evitar dependencias circulares
+  const loadPlanesAccionRef = useRef(loadPlanesAccion)
+  loadPlanesAccionRef.current = loadPlanesAccion
 
   // Cargar datos cuando cambia el areaId
   useEffect(() => {
     if (areaId) {
-      loadPlanesAccion()
+      loadPlanesAccionRef.current()
     }
-  }, [areaId, loadPlanesAccion])
+  }, [areaId])
 
   // Añadir un nuevo plan de acción
   const addPlanAccion = useCallback(
@@ -262,7 +273,6 @@ export function usePlanAccionService(areaSlug: string) {
       }
 
       try {
-        setIsLoading(true)
         console.log("Añadiendo nuevo plan de acción:", newItem)
 
         // Validar campos requeridos
@@ -350,35 +360,22 @@ export function usePlanAccionService(areaSlug: string) {
         console.log("Plan de acción añadido con éxito:", data)
 
         // Actualizar estado local
-        await loadPlanesAccion()
-
-        toast({
-          title: "Plan de acción añadido",
-          description: "El plan de acción se ha añadido correctamente",
-        })
+        await loadPlanesAccionRef.current()
 
         return data
       } catch (err: any) {
         console.error("Error en addPlanAccion:", err)
-        setError(err instanceof Error ? err : new Error(err.message || "Error desconocido"))
-        toast({
-          title: "Error al añadir plan de acción",
-          description: err.message || "Ocurrió un error al añadir el plan de acción",
-          variant: "destructive",
-        })
+        setError(err.message || "Error añadiendo plan de acción")
         throw err
-      } finally {
-        setIsLoading(false)
       }
     },
-    [areaId, loadPlanesAccion, supabase],
+    [areaId, supabase, setError],
   )
 
   // Actualizar un plan de acción existente
   const updatePlanAccion = useCallback(
     async (id: string, updatedItem: Partial<PlanAccionItem>) => {
       try {
-        setIsLoading(true)
         console.log("Actualizando plan de acción:", id, updatedItem)
 
         // Preparar datos para actualización
@@ -424,35 +421,22 @@ export function usePlanAccionService(areaSlug: string) {
         console.log("Plan de acción actualizado con éxito:", data)
 
         // Actualizar estado local
-        await loadPlanesAccion()
-
-        toast({
-          title: "Plan de acción actualizado",
-          description: "El plan de acción se ha actualizado correctamente",
-        })
+        await loadPlanesAccionRef.current()
 
         return data
       } catch (err: any) {
         console.error("Error en updatePlanAccion:", err)
-        setError(err instanceof Error ? err : new Error(err.message || "Error desconocido"))
-        toast({
-          title: "Error al actualizar plan de acción",
-          description: err.message || "Ocurrió un error al actualizar el plan de acción",
-          variant: "destructive",
-        })
+        setError(err.message || "Error actualizando plan de acción")
         throw err
-      } finally {
-        setIsLoading(false)
       }
     },
-    [loadPlanesAccion, supabase],
+    [supabase, setError],
   )
 
   // Eliminar un plan de acción
   const deletePlanAccion = useCallback(
     async (id: string) => {
       try {
-        setIsLoading(true)
         console.log("Eliminando plan de acción:", id)
 
         // Eliminar de Supabase
@@ -466,28 +450,16 @@ export function usePlanAccionService(areaSlug: string) {
         console.log("Plan de acción eliminado con éxito")
 
         // Actualizar estado local
-        await loadPlanesAccion()
-
-        toast({
-          title: "Plan de acción eliminado",
-          description: "El plan de acción se ha eliminado correctamente",
-        })
+        await loadPlanesAccionRef.current()
 
         return true
       } catch (err: any) {
         console.error("Error en deletePlanAccion:", err)
-        setError(err instanceof Error ? err : new Error(err.message || "Error desconocido"))
-        toast({
-          title: "Error al eliminar plan de acción",
-          description: err.message || "Ocurrió un error al eliminar el plan de acción",
-          variant: "destructive",
-        })
+        setError(err.message || "Error eliminando plan de acción")
         throw err
-      } finally {
-        setIsLoading(false)
       }
     },
-    [loadPlanesAccion, supabase],
+    [supabase, setError],
   )
 
   return {
@@ -500,5 +472,11 @@ export function usePlanAccionService(areaSlug: string) {
     addPlanAccion,
     updatePlanAccion,
     deletePlanAccion,
+    // Estados de carga mejorados
+    progress,
+    stage,
+    isLoadingTooLong,
+    retryCount,
+    retry: retryLoading
   }
 }
