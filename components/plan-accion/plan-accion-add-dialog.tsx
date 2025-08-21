@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { AlertCircle, Save, Download } from "lucide-react"
+import { toast } from "@/components/ui/use-toast"
 import { PlanAccionEstado, type PlanAccionItem } from "@/types/plan-accion"
 import { usePlanAccionForm } from "@/hooks/use-plan-accion-form"
 import { DatePicker } from "@/components/ui/date-picker"
@@ -39,6 +40,8 @@ export function PlanAccionAddDialog({
   initialItem = null, 
   mode = "add" 
 }: PlanAccionAddDialogProps) {
+  const [hasBeenSubmitted, setHasBeenSubmitted] = useState(false)
+  
   const {
     item,
     errors,
@@ -397,6 +400,7 @@ export function PlanAccionAddDialog({
       setSelectedProyectoPDM("")
       setSubprogramasPDM([])
       setProyectosPDM([])
+      setHasBeenSubmitted(false)
     }
   }, [open, resetForm])
 
@@ -491,133 +495,79 @@ export function PlanAccionAddDialog({
             Cancelar
           </Button>
           <Button
-            onClick={async (e) => {
-              e.preventDefault()
-
-              console.log("🔥 === INICIO DEL PROCESO DE GUARDADO ===")
-              console.log("📋 Estado actual del formulario (item):", item)
-              console.log("🎯 Variables locales del Plan Decenal:")
-              console.log("   selectedPlan:", selectedPlan)
-              console.log("   selectedMacroobjetivo:", selectedMacroobjetivo)
-              console.log("   selectedObjetivo:", selectedObjetivo)
-              
-              // Solo validar campos del Plan Decenal si está habilitado
-              if (incluirPlanDecenal) {
-                // Validar que si se ha marcado incluir Plan Decenal, se hayan seleccionado todos los campos
-                if (!selectedPlan) {
-                  alert("Si incluye Plan Decenal, por favor seleccione un Plan")
-                  return
-                }
-
-                if (!selectedMacroobjetivo) {
-                  alert("Si incluye Plan Decenal, por favor seleccione un Macroobjetivo")
-                  return
-                }
-
-                if (!selectedObjetivo) {
-                  alert("Si incluye Plan Decenal, por favor seleccione un Objetivo")
-                  return
-                }
-              }
-
-              // Forzar actualización de los campos del Plan Decenal ANTES del envío solo si está habilitado
-              console.log("🔄 ACTUALIZANDO CAMPOS SEGÚN CONFIGURACIÓN...")
-              
-              // Crear objeto final con los valores más actuales
-              let finalFormData = { ...item }
-              
-              // Solo incluir campos del Plan Decenal si está habilitado
-              if (incluirPlanDecenal) {
-                console.log("🔄 ACTUALIZANDO CAMPOS PLAN DECENAL...")
-                updateField("metaDecenal", selectedPlan || "")
-                updateField("macroobjetivoDecenal", selectedMacroobjetivo || "")
-                updateField("objetivoDecenal", selectedObjetivo || "")
-                
-                // Incluir en datos finales
-                finalFormData = {
-                  ...finalFormData,
-                  metaDecenal: selectedPlan || "",
-                  macroobjetivoDecenal: selectedMacroobjetivo || "",
-                  objetivoDecenal: selectedObjetivo || "",
-                }
-              } else {
-                // Limpiar campos si no está habilitado
-                finalFormData = {
-                  ...finalFormData,
-                  metaDecenal: "",
-                  macroobjetivoDecenal: "",
-                  objetivoDecenal: "",
-                }
-              }
-              
-              // Esperar un momento para que se actualice el estado
-              await new Promise(resolve => setTimeout(resolve, 100))
-              
-              console.log("📋 Estado DESPUÉS de forzar actualización:", finalFormData)
-
-              console.log("🎯 DATOS FINALES GARANTIZADOS:", finalFormData)
-              console.log("🔍 VERIFICACIÓN FINAL DE CAMPOS PLAN DECENAL:")
-              console.log("   metaDecenal:", finalFormData.metaDecenal)
-              console.log("   macroobjetivoDecenal:", finalFormData.macroobjetivoDecenal)
-              console.log("   objetivoDecenal:", finalFormData.objetivoDecenal)
-              
-              // Actualizar campos del PDM si está habilitado
-              if (incluirPDM) {
-                // Validar que si se ha marcado incluir PDM, se hayan seleccionado todos los campos
-                if (!selectedProgramaPDM) {
-                  alert("Si incluye PDM, por favor seleccione un Programa")
-                  return
-                }
-
-                if (!selectedSubprogramaPDM) {
-                  alert("Si incluye PDM, por favor seleccione un Subprograma")
-                  return
-                }
-
-                if (!selectedProyectoPDM) {
-                  alert("Si incluye PDM, por favor seleccione un Proyecto")
-                  return
-                }
-                
-                // Actualizar campos PDM en datos finales
-                finalFormData = {
-                  ...finalFormData,
-                  programaPDM: selectedProgramaPDM || "",
-                  subprogramaPDM: selectedSubprogramaPDM || "",
-                  proyectoPDM: selectedProyectoPDM || "",
-                }
-              } else {
-                // Limpiar campos PDM si no está habilitado
-                finalFormData = {
-                  ...finalFormData,
-                  programaPDM: "",
-                  subprogramaPDM: "",
-                  proyectoPDM: "",
-                }
-              }
-              
-              console.log("🔍 VERIFICACIÓN FINAL DE CAMPOS PDM:")
-              console.log("   programaPDM:", finalFormData.programaPDM)
-              console.log("   subprogramaPDM:", finalFormData.subprogramaPDM)
-              console.log("   proyectoPDM:", finalFormData.proyectoPDM)
-
-              // Validar que los campos básicos estén completos
-              if (
-                !finalFormData.programa ||
-                !finalFormData.objetivo ||
-                !finalFormData.meta ||
-                !finalFormData.presupuesto ||
-                !finalFormData.acciones ||
-                !finalFormData.indicadores ||
-                !finalFormData.responsable
-              ) {
-                alert("Por favor complete todos los campos obligatorios")
+            onClick={() => {
+              // Prevenir múltiples envíos
+              if (isSubmitting || hasBeenSubmitted) {
+                console.log("⚠️ Envío bloqueado - ya está en proceso o completado")
                 return
               }
 
-              // Asegurar que los campos demográficos se incluyan correctamente
-              finalFormData = {
-                ...finalFormData,
+              console.log("🔄 BOTÓN GUARDAR PRESIONADO")
+              console.log("📊 Estado actual del item:", item)
+              
+              // Validar campos obligatorios antes de proceder
+              const requiredFields = [
+                { field: 'programa', label: 'Programa' },
+                { field: 'objetivo', label: 'Objetivo' },
+                { field: 'meta', label: 'Meta' },
+                { field: 'presupuesto', label: 'Presupuesto' },
+                { field: 'acciones', label: 'Acciones' },
+                { field: 'indicadores', label: 'Indicadores' },
+                { field: 'responsable', label: 'Responsable' },
+                { field: 'fechaInicio', label: 'Fecha de Inicio' },
+                { field: 'fechaFin', label: 'Fecha de Fin' }
+              ]
+              
+              const missingFields = requiredFields.filter(({ field }) => {
+                const value = item[field as keyof PlanAccionItem]
+                return !value || (typeof value === 'string' && value.trim() === '')
+              })
+              
+              if (missingFields.length > 0) {
+                const missingFieldNames = missingFields.map(({ label }) => label).join(', ')
+                toast({
+                  title: "Campos obligatorios faltantes",
+                  description: `Por favor complete los siguientes campos: ${missingFieldNames}`,
+                  variant: "destructive"
+                })
+                return
+              }
+              
+              // Validar fechas
+              if (fechaInicioDate && fechaFinDate && fechaFinDate <= fechaInicioDate) {
+                toast({
+                  title: "Error en fechas",
+                  description: "La fecha de fin debe ser posterior a la fecha de inicio",
+                  variant: "destructive"
+                })
+                return
+              }
+              
+              // Validar porcentaje de avance
+              if (item.porcentajeAvance !== undefined && (item.porcentajeAvance < 0 || item.porcentajeAvance > 100)) {
+                toast({
+                  title: "Error en porcentaje",
+                  description: "El porcentaje de avance debe estar entre 0 y 100",
+                  variant: "destructive"
+                })
+                return
+              }
+
+              // Marcar como enviado para prevenir múltiples envíos
+              setHasBeenSubmitted(true)
+
+              // Crear una copia del item con todos los campos necesarios
+              let finalFormData = {
+                ...item,
+                // Asegurar que los campos del Plan Decenal estén incluidos
+                metaDecenal: item.metaDecenal || "",
+                macroobjetivoDecenal: item.macroobjetivoDecenal || "",
+                objetivoDecenal: item.objetivoDecenal || "",
+                // Asegurar que los campos del PDM estén incluidos
+                programaPDM: item.programaPDM || "",
+                subprogramaPDM: item.subprogramaPDM || "",
+                proyectoPDM: item.proyectoPDM || "",
+                // Asegurar que los campos demográficos se incluyan correctamente
                 grupoEtareo: item.grupoEtareo || "",
                 grupoPoblacion: item.grupoPoblacion || "",
                 zona: item.zona || "",
@@ -626,25 +576,35 @@ export function PlanAccionAddDialog({
               }
 
               console.log("✅ Enviando datos directamente a onSubmit...")
-              console.log("📊 Datos demográficos:", {
-                grupoEtareo: finalFormData.grupoEtareo,
-                grupoPoblacion: finalFormData.grupoPoblacion,
-                zona: finalFormData.zona,
-                grupoEtnico: finalFormData.grupoEtnico,
-                cantidad: finalFormData.cantidad
+              
+              // Mostrar toast de éxito
+              toast({
+                title: "¡Guardado exitoso!",
+                description: `El plan de acción ha sido ${mode === "edit" ? "actualizado" : "guardado"} correctamente`,
+                variant: "default"
               })
               
-              // Enviar los datos directamente asegurando que tienen los campos del Plan Decenal
+              // Enviar los datos directamente
               onSubmit(finalFormData)
+              
+              // Cerrar el diálogo automáticamente después de guardar
+              setTimeout(() => {
+                onOpenChange(false)
+              }, 1500) // Esperar 1.5 segundos para que el usuario vea el toast
             }}
             aria-label="Guardar elemento"
-            disabled={isSubmitting}
+            disabled={isSubmitting || hasBeenSubmitted}
             type="button"
           >
             {isSubmitting ? (
               <>
                 <span className="animate-spin mr-2">⏳</span>
                 Guardando...
+              </>
+            ) : hasBeenSubmitted ? (
+              <>
+                <span className="mr-2">✅</span>
+                {mode === "edit" ? "Actualizado" : "Guardado"}
               </>
             ) : (
               <>
