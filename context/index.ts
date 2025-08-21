@@ -1,2 +1,2 @@
-export { AuthProvider, useAuth } from './auth-context'
-export type { AuthUser, AuthContextType } from './auth-context'
+export { AuthProviderProduction as AuthProvider, useAuth } from './auth-context-production'
+export type { AuthUser, AuthContextType } from './auth-context-production'
