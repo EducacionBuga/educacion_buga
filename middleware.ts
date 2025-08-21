@@ -15,8 +15,10 @@ export async function middleware(req: NextRequest) {
   }
   
   try {
-    // Crear cliente de Supabase
+    // Crear cliente de Supabase para middleware
     const supabase = createMiddlewareClient({ req, res })
+    
+    console.log('🔍 [MIDDLEWARE] Verificando sesión para:', req.nextUrl.pathname)
     
     // Verificar sesión con timeout optimizado para producción
     const sessionPromise = supabase.auth.getSession()
@@ -29,26 +31,39 @@ export async function middleware(req: NextRequest) {
       timeoutPromise
     ]) as any
     
+    console.log('📋 [MIDDLEWARE] Estado de sesión:', {
+      hasSession: !!session,
+      userId: session?.user?.id,
+      email: session?.user?.email,
+      path: req.nextUrl.pathname
+    })
+    
     // Si está en una ruta protegida y no hay sesión, redirigir al login (página principal)
     if (req.nextUrl.pathname.startsWith('/dashboard') && !session) {
+      console.log('🚫 [MIDDLEWARE] Sin sesión, redirigiendo a login')
       return NextResponse.redirect(new URL('/', req.url))
     }
     
     // Si está en la página principal y ya tiene sesión, redirigir al dashboard
     if (req.nextUrl.pathname === '/' && session) {
+      console.log('✅ [MIDDLEWARE] Con sesión, redirigiendo a dashboard')
       return NextResponse.redirect(new URL('/dashboard', req.url))
     }
     
+    console.log('➡️ [MIDDLEWARE] Permitiendo acceso a:', req.nextUrl.pathname)
+    
     return res
   } catch (error) {
-    console.error('Middleware error:', error)
+    console.error('❌ [MIDDLEWARE] Error verificando sesión:', error)
     
-    // En caso de error de timeout, permitir que continúe para que el auth-context maneje la autenticación
+    // En caso de error, ser más permisivo y permitir que el auth-context maneje la autenticación
     if (req.nextUrl.pathname.startsWith('/dashboard')) {
-      // Solo redirigir si definitivamente no hay forma de verificar la sesión
-      console.warn('Cannot verify session due to timeout, allowing client-side auth handling')
+      console.warn('⚠️ [MIDDLEWARE] Error en verificación, permitiendo acceso para que el cliente maneje la auth')
+      // Permitir acceso y que el contexto de auth maneje la redirección si es necesario
+      return res
     }
     
+    // Para otras rutas, continuar normalmente
     return res
   }
 }

@@ -25,10 +25,20 @@ export default function DashboardLayout({
   const isPlanAccion = pathname === "/dashboard/planeacion/plan-accion"
 
   useEffect(() => {
+    console.log('🏠 [DASHBOARD LAYOUT] Estado de auth:', {
+      loading,
+      isAuthenticated,
+      user: user?.email,
+      pathname
+    })
+    
     if (!loading && !isAuthenticated) {
+      console.log('🚫 [DASHBOARD LAYOUT] No autenticado, redirigiendo a login')
       router.push("/")
+    } else if (!loading && isAuthenticated) {
+      console.log('✅ [DASHBOARD LAYOUT] Usuario autenticado, permitiendo acceso')
     }
-  }, [isAuthenticated, loading, router])
+  }, [isAuthenticated, loading, router, user, pathname])
 
   const handleLogout = () => {
     logout()

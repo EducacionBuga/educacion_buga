@@ -1,9 +1,40 @@
 "use client"
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/context"
 import { LoginForm } from "@/components/auth/login-form"
 import { motion } from "framer-motion"
 import Image from "next/image"
 
 export default function Home() {
+  const { isAuthenticated, loading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    console.log('🏠 [HOME PAGE] Estado de auth:', {
+      loading,
+      isAuthenticated
+    })
+    
+    if (!loading && isAuthenticated) {
+      console.log('✅ [HOME PAGE] Usuario autenticado, redirigiendo a dashboard')
+      router.push('/dashboard')
+    }
+  }, [isAuthenticated, loading, router])
+
+  // Mostrar loading mientras se verifica la autenticación
+  if (loading) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+      </main>
+    )
+  }
+
+  // Si está autenticado, no mostrar el formulario (la redirección se encargará)
+  if (isAuthenticated) {
+    return null
+  }
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800">
       <motion.div
