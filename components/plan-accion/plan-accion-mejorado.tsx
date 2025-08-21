@@ -59,7 +59,7 @@ export function PlanAccionMejorado({
   onItemDelete,
 }: PlanAccionMejoradoProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<"general" | "decenal" | "pdm">("general")
+  const [currentView, setCurrentView] = useState<"general" | "demografica" | "decenal" | "pdm">("general")
 
   // Calcular estadísticas
   const stats = useMemo(() => {
@@ -237,8 +237,9 @@ export function PlanAccionMejorado({
             {isExpanded && (
               <div className="border-t pt-4 mt-4">
                 <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as any)} className="w-full">
-                  <TabsList className="grid w-full grid-cols-3 bg-gray-100">
+                  <TabsList className="grid w-full grid-cols-4 bg-gray-100">
                     <TabsTrigger value="general" className="text-xs">📋 General</TabsTrigger>
+                    <TabsTrigger value="demografica" className="text-xs">👥 Demográfica</TabsTrigger>
                     <TabsTrigger value="decenal" className="text-xs">🎯 Plan Decenal</TabsTrigger>
                     <TabsTrigger value="pdm" className="text-xs">📊 PDM 2024-2027</TabsTrigger>
                   </TabsList>
@@ -267,6 +268,47 @@ export function PlanAccionMejorado({
                           <Badge variant="outline" className="mt-1">{item.estado}</Badge>
                         </div>
                       </div>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="demografica" className="mt-4">
+                    <div className="space-y-4">
+                      {(item.zona || item.grupoEtnico || item.grupoEtareo || item.grupoPoblacion || item.cantidad) ? (
+                        <div className="bg-teal-50 rounded-lg p-4 border border-teal-200">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                              <div>
+                                <p className="text-xs font-medium text-teal-700 uppercase tracking-wide">Zona</p>
+                                <p className="text-sm text-teal-900 mt-1">{item.zona || "No especificada"}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-medium text-teal-700 uppercase tracking-wide">Grupo Étnico</p>
+                                <p className="text-sm text-teal-900 mt-1">{item.grupoEtnico || "No especificado"}</p>
+                              </div>
+                            </div>
+                            <div className="space-y-3">
+                              <div>
+                                <p className="text-xs font-medium text-teal-700 uppercase tracking-wide">Grupo Etáreo</p>
+                                <p className="text-sm text-teal-900 mt-1">{item.grupoEtareo || "No especificado"}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-medium text-teal-700 uppercase tracking-wide">Grupo de Población</p>
+                                <p className="text-sm text-teal-900 mt-1">{item.grupoPoblacion || "No especificado"}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-medium text-teal-700 uppercase tracking-wide">Cantidad</p>
+                                <p className="text-sm text-teal-900 mt-1">{item.cantidad ? (typeof item.cantidad === 'number' ? item.cantidad.toLocaleString() : item.cantidad) : "No especificada"}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
+                          <AlertCircle className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                          <p className="font-medium">No se ha registrado información demográfica</p>
+                          <p className="text-sm mt-1">Esta actividad no tiene datos demográficos asociados</p>
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
                   

@@ -12,6 +12,7 @@ import { usePlanAccionForm } from "@/hooks/use-plan-accion-form"
 import { DatePicker } from "@/components/ui/date-picker"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { planesDesarrolloMunicipal, getSubprogramasByPrograma, getProyectosBySubprograma } from "@/constants/plan-desarrollo-municipal"
+import { PlanAccionFormSections } from "./plan-accion-form-sections"
 
 // Helper function to safely format dates for input[type="date"]
 const formatDateForInput = (date: Date | null): string => {
@@ -406,27 +407,12 @@ export function PlanAccionAddDialog({
 
   // Validar y enviar formulario
   const handleFormSubmit = () => {
-    // Validar campos del Plan Decenal solo si está habilitado
+    // Actualizar campos del Plan Decenal si está habilitado (sin validación obligatoria)
     if (incluirPlanDecenal) {
-      if (!selectedPlan) {
-        alert("Por favor seleccione un Plan Decenal")
-        return
-      }
-
-      if (!selectedMacroobjetivo) {
-        alert("Por favor seleccione un Macroobjetivo")
-        return
-      }
-
-      if (!selectedObjetivo) {
-        alert("Por favor seleccione un Objetivo")
-        return
-      }
-
-      // Agregar los campos del Plan Decenal directamente al item antes de validar
-      updateField("metaDecenal", selectedPlan)
-      updateField("macroobjetivoDecenal", selectedMacroobjetivo)
-      updateField("objetivoDecenal", selectedObjetivo)
+      // Solo actualizar los campos que están seleccionados
+      updateField("metaDecenal", selectedPlan || "")
+      updateField("macroobjetivoDecenal", selectedMacroobjetivo || "")
+      updateField("objetivoDecenal", selectedObjetivo || "")
     } else {
       // Limpiar campos del Plan Decenal si no está habilitado
       updateField("metaDecenal", "")
@@ -434,27 +420,12 @@ export function PlanAccionAddDialog({
       updateField("objetivoDecenal", "")
     }
 
-    // Validar campos del PDM solo si está habilitado
+    // Actualizar campos del PDM si está habilitado (sin validación obligatoria)
     if (incluirPDM) {
-      if (!selectedProgramaPDM) {
-        alert("Por favor seleccione un Programa PDM")
-        return
-      }
-
-      if (!selectedSubprogramaPDM) {
-        alert("Por favor seleccione un Subprograma PDM")
-        return
-      }
-
-      if (!selectedProyectoPDM) {
-        alert("Por favor seleccione un Proyecto/Actividad PDM")
-        return
-      }
-
-      // Agregar los campos del PDM directamente al item antes de validar
-      updateField("programaPDM", selectedProgramaPDM)
-      updateField("subprogramaPDM", selectedSubprogramaPDM)
-      updateField("proyectoPDM", selectedProyectoPDM)
+      // Solo actualizar los campos que están seleccionados
+      updateField("programaPDM", selectedProgramaPDM || "")
+      updateField("subprogramaPDM", selectedSubprogramaPDM || "")
+      updateField("proyectoPDM", selectedProyectoPDM || "")
     } else {
       // Limpiar campos del PDM si no está habilitado
       updateField("programaPDM", "")
@@ -480,485 +451,39 @@ export function PlanAccionAddDialog({
           </DialogTitle>
         </DialogHeader>
         <ScrollArea className="h-[calc(100vh-200px)]">
-          <div className="grid gap-8 py-8 md:grid-cols-2 px-4">
-            <div>
-              <label htmlFor="programa" className="block text-sm font-medium mb-1">
-                Programa <span className="text-red-500">*</span>
-              </label>
-              <Input
-                id="programa"
-                value={item.programa}
-                onChange={(e) => updateField("programa", e.target.value)}
-                placeholder="Nombre del programa"
-                className={`w-full ${errors.programa ? "border-red-500" : ""}`}
-                aria-invalid={!!errors.programa}
-                aria-describedby={errors.programa ? "programa-error" : undefined}
-              />
-              {errors.programa && (
-                <p id="programa-error" className="text-red-500 text-xs mt-1 flex items-center">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  {errors.programa}
-                </p>
-              )}
-            </div>
-            <div>
-              <label htmlFor="objetivo" className="block text-sm font-medium mb-1">
-                Objetivo <span className="text-red-500">*</span>
-              </label>
-              <Input
-                id="objetivo"
-                value={item.objetivo}
-                onChange={(e) => updateField("objetivo", e.target.value)}
-                placeholder="Objetivo del programa"
-                className={`w-full ${errors.objetivo ? "border-red-500" : ""}`}
-                aria-invalid={!!errors.objetivo}
-                aria-describedby={errors.objetivo ? "objetivo-error" : undefined}
-              />
-              {errors.objetivo && (
-                <p id="objetivo-error" className="text-red-500 text-xs mt-1 flex items-center">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  {errors.objetivo}
-                </p>
-              )}
-            </div>
-            <div>
-              <label htmlFor="meta" className="block text-sm font-medium mb-1">
-                Meta <span className="text-red-500">*</span>
-              </label>
-              <Input
-                id="meta"
-                value={item.meta}
-                onChange={(e) => updateField("meta", e.target.value)}
-                placeholder="Meta a alcanzar"
-                className={`w-full ${errors.meta ? "border-red-500" : ""}`}
-                aria-invalid={!!errors.meta}
-                aria-describedby={errors.meta ? "meta-error" : undefined}
-              />
-              {errors.meta && (
-                <p id="meta-error" className="text-red-500 text-xs mt-1 flex items-center">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  {errors.meta}
-                </p>
-              )}
-            </div>
-            <div>
-              <label htmlFor="presupuesto" className="block text-sm font-medium mb-1">
-                Presupuesto <span className="text-red-500">*</span>
-              </label>
-              <Input
-                id="presupuesto"
-                value={item.presupuesto}
-                onChange={(e) => updateField("presupuesto", e.target.value)}
-                placeholder="Ej: $100,000,000"
-                className={`w-full ${errors.presupuesto ? "border-red-500" : ""}`}
-                aria-invalid={!!errors.presupuesto}
-                aria-describedby={errors.presupuesto ? "presupuesto-error" : undefined}
-              />
-              {errors.presupuesto && (
-                <p id="presupuesto-error" className="text-red-500 text-xs mt-1 flex items-center">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  {errors.presupuesto}
-                </p>
-              )}
-            </div>
-            <div>
-              <label htmlFor="acciones" className="block text-sm font-medium mb-1">
-                Acciones realizadas <span className="text-red-500">*</span>
-              </label>
-              <Input
-                id="acciones"
-                value={item.acciones}
-                onChange={(e) => updateField("acciones", e.target.value)}
-                placeholder="Acciones separadas por comas"
-                className={`w-full ${errors.acciones ? "border-red-500" : ""}`}
-                aria-invalid={!!errors.acciones}
-                aria-describedby={errors.acciones ? "acciones-error" : undefined}
-              />
-              {errors.acciones && (
-                <p id="acciones-error" className="text-red-500 text-xs mt-1 flex items-center">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  {errors.acciones}
-                </p>
-              )}
-            </div>
-            <div>
-              <label htmlFor="indicadores" className="block text-sm font-medium mb-1">
-                Indicadores Alcanzados <span className="text-red-500">*</span>
-              </label>
-              <Input
-                id="indicadores"
-                value={item.indicadores}
-                onChange={(e) => updateField("indicadores", e.target.value)}
-                placeholder="Indicadores de avance"
-                className={`w-full ${errors.indicadores ? "border-red-500" : ""}`}
-                aria-invalid={!!errors.indicadores}
-                aria-describedby={errors.indicadores ? "indicadores-error" : undefined}
-              />
-              {errors.indicadores && (
-                <p id="indicadores-error" className="text-red-500 text-xs mt-1 flex items-center">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  {errors.indicadores}
-                </p>
-              )}
-            </div>
-            <div>
-              <label htmlFor="porcentajeAvance" className="block text-sm font-medium mb-1">
-                Porcentaje de Avance <span className="text-red-500">*</span>
-              </label>
-              <div className="flex items-center gap-4">
-                <input
-                  type="range"
-                  id="porcentajeAvance"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={item.porcentajeAvance}
-                  onChange={(e) => updateField("porcentajeAvance", Number(e.target.value))}
-                  className={`flex-1 ${errors.porcentajeAvance ? "border-red-500" : ""}`}
-                  aria-label="Ajustar porcentaje de avance"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={item.porcentajeAvance}
-                />
-                <div className="flex items-center gap-2 w-24">
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={item.porcentajeAvance}
-                    onChange={(e) => updateField("porcentajeAvance", Number(e.target.value))}
-                    className={`w-16 ${errors.porcentajeAvance ? "border-red-500" : ""}`}
-                    aria-label="Porcentaje de avance"
-                  />
-                  <span>%</span>
-                </div>
-              </div>
-              {errors.porcentajeAvance && (
-                <p id="porcentajeAvance-error" className="text-red-500 text-xs mt-1 flex items-center">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  {errors.porcentajeAvance}
-                </p>
-              )}
-            </div>
-            <div>
-              <label htmlFor="estado" className="block text-sm font-medium mb-1">
-                Estado <span className="text-red-500">*</span>
-              </label>
-              <select
-                id="estado"
-                value={item.estado}
-                onChange={(e) => updateField("estado", e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                aria-label="Estado del elemento"
-              >
-                <option value={PlanAccionEstado.PENDIENTE}>{PlanAccionEstado.PENDIENTE}</option>
-                <option value={PlanAccionEstado.EN_PROGRESO}>{PlanAccionEstado.EN_PROGRESO}</option>
-                <option value={PlanAccionEstado.COMPLETADO}>{PlanAccionEstado.COMPLETADO}</option>
-                <option value={PlanAccionEstado.RETRASADO}>{PlanAccionEstado.RETRASADO}</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="responsable" className="block text-sm font-medium mb-1">
-                Responsable <span className="text-red-500">*</span>
-              </label>
-              <Input
-                id="responsable"
-                value={item.responsable}
-                onChange={(e) => updateField("responsable", e.target.value)}
-                placeholder="Nombre del responsable"
-                className={`w-full ${errors.responsable ? "border-red-500" : ""}`}
-                aria-invalid={!!errors.responsable}
-                aria-describedby={errors.responsable ? "responsable-error" : undefined}
-              />
-              {errors.responsable && (
-                <p className="text-red-500 text-xs mt-1 flex items-center">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  {errors.responsable}
-                </p>
-              )}
-            </div>
-            <div>
-              <label htmlFor="fechaInicio" className="block text-sm font-medium mb-1">
-                Fecha de inicio <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                id="fechaInicio"
-                value={formatDateForInput(fechaInicioDate)}
-                onChange={(e) => {
-                  const value = e.target.value
-                  if (value) {
-                    const date = new Date(value)
-                    setFechaInicioDate(date)
-                    updateField("fechaInicio", value)
-                  } else {
-                    setFechaInicioDate(null)
-                    updateField("fechaInicio", "")
-                  }
-                }}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                aria-label="Fecha de inicio"
-                aria-describedby={errors.fechaInicio ? "fechaInicio-error" : undefined}
-              />
-              {errors.fechaInicio && (
-                <p id="fechaInicio-error" className="text-red-500 text-xs mt-1 flex items-center">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  {errors.fechaInicio}
-                </p>
-              )}
-            </div>
-            <div>
-              <label htmlFor="fechaFin" className="block text-sm font-medium mb-1">
-                Fecha de fin <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                id="fechaFin"
-                value={formatDateForInput(fechaFinDate)}
-                onChange={(e) => {
-                  const value = e.target.value
-                  if (value) {
-                    const date = new Date(value)
-                    setFechaFinDate(date)
-                    updateField("fechaFin", value)
-                  } else {
-                    setFechaFinDate(null)
-                    updateField("fechaFin", "")
-                  }
-                }}
-                min={formatDateForInput(fechaInicioDate)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                aria-label="Fecha de fin"
-                aria-describedby={errors.fechaFin ? "fechaFin-error" : undefined}
-              />
-              {errors.fechaFin && (
-                <p id="fechaFin-error" className="text-red-500 text-xs mt-1 flex items-center">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  {errors.fechaFin}
-                </p>
-              )}
-            </div>
-
-            {/* Checkbox para Plan Decenal */}
-            <div className="md:col-span-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="incluir-plan-decenal"
-                  checked={incluirPlanDecenal}
-                  onCheckedChange={(checked) => {
-                    setIncluirPlanDecenal(checked as boolean)
-                    if (!checked) {
-                      setSelectedPlan("")
-                      setSelectedMacroobjetivo("")
-                      setSelectedObjetivo("")
-                    }
-                  }}
-                />
-                <label
-                  htmlFor="incluir-plan-decenal"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  ¿Quieres agregar plan decenal?
-                </label>
-              </div>
-            </div>
-
-            {/* Selectores del Plan Decenal - Solo se muestran si el checkbox está marcado */}
-            {incluirPlanDecenal && (
-              <>
-                <div className="md:col-span-2">
-                  <label htmlFor="planDecenal" className="block text-sm font-medium mb-1">
-                    Plan Decenal <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="planDecenal"
-                    value={selectedPlan}
-                    onChange={(e) => {
-                      console.log("Plan Decenal seleccionado:", e.target.value)
-                      setSelectedPlan(e.target.value)
-                    }}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    aria-label="Seleccionar Plan Decenal"
-                  >
-                    <option value="">Seleccione un Plan Decenal</option>
-                    {planesDecenales.map((plan) => (
-                      <option key={plan.nombre} value={plan.nombre}>
-                        {plan.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label htmlFor="macroobjetivo" className="block text-sm font-medium mb-1">
-                    Macroobjetivo <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="macroobjetivo"
-                    value={selectedMacroobjetivo}
-                    onChange={(e) => {
-                      console.log("Macroobjetivo seleccionado:", e.target.value)
-                      setSelectedMacroobjetivo(e.target.value)
-                    }}
-                    disabled={!selectedPlan}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    aria-label="Seleccionar Macroobjetivo"
-                  >
-                    <option value="">Seleccione un Macroobjetivo</option>
-                    {macroobjetivos.map((macro) => (
-                      <option key={macro.nombre} value={macro.nombre}>
-                        {macro.nombre.split("\n")[0]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label htmlFor="objetivo-especifico" className="block text-sm font-medium mb-1">
-                    Objetivo Decenal <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="objetivo-especifico"
-                    value={selectedObjetivo}
-                    onChange={(e) => {
-                      console.log("Objetivo Decenal seleccionado:", e.target.value)
-                      setSelectedObjetivo(e.target.value)
-                    }}
-                    disabled={!selectedMacroobjetivo}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    aria-label="Seleccionar Objetivo"
-                  >
-                    <option value="">Seleccione un Objetivo</option>
-                    {objetivos.map((obj) => (
-                      <option key={obj} value={obj}>
-                        {obj}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </>
-            )}
-
-            {/* Checkbox para Plan de Desarrollo Municipal (PDM) */}
-            <div className="md:col-span-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="incluir-pdm"
-                    checked={incluirPDM}
-                    onCheckedChange={(checked) => {
-                      setIncluirPDM(checked as boolean)
-                      if (!checked) {
-                        setSelectedProgramaPDM("")
-                        setSelectedSubprogramaPDM("")
-                        setSelectedProyectoPDM("")
-                      }
-                    }}
-                  />
-                  <label
-                    htmlFor="incluir-pdm"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    ¿Quieres agregar Plan de Desarrollo Municipal (PDM) 2024-2027?
-                  </label>
-                </div>
-                {/* Icono de descarga del Plan de Desarrollo */}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  title="Consultar y descargar Plan de Desarrollo Municipal"
-                  onClick={() => {
-                    // Descargar el archivo desde public/document/plan-de-desarrollo.xlsx
-                    const link = document.createElement('a')
-                    link.href = '/document/plan-de-desarrollo.xlsx'
-                    link.download = 'plan-de-desarrollo.xlsx'
-                    document.body.appendChild(link)
-                    link.click()
-                    document.body.removeChild(link)
-                  }}
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Selectores del PDM - Solo se muestran si el checkbox está marcado */}
-            {incluirPDM && (
-              <>
-                <div className="md:col-span-2">
-                  <label htmlFor="programaPDM" className="block text-sm font-medium mb-1">
-                    Programa PDM <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="programaPDM"
-                    value={selectedProgramaPDM}
-                    onChange={(e) => {
-                      console.log("Programa PDM seleccionado:", e.target.value)
-                      setSelectedProgramaPDM(e.target.value)
-                    }}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    aria-label="Seleccionar Programa PDM"
-                  >
-                    <option value="">Seleccione un Programa PDM</option>
-                    {planesDesarrolloMunicipal.map((programa) => (
-                      <option key={programa.nombre} value={programa.nombre}>
-                        {programa.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label htmlFor="subprogramaPDM" className="block text-sm font-medium mb-1">
-                    Subprograma PDM <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="subprogramaPDM"
-                    value={selectedSubprogramaPDM}
-                    onChange={(e) => {
-                      console.log("Subprograma PDM seleccionado:", e.target.value)
-                      setSelectedSubprogramaPDM(e.target.value)
-                    }}
-                    disabled={!selectedProgramaPDM}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    aria-label="Seleccionar Subprograma PDM"
-                  >
-                    <option value="">Seleccione un Subprograma PDM</option>
-                    {subprogramasPDM.map((subprograma) => (
-                      <option key={subprograma.nombre} value={subprograma.nombre}>
-                        {subprograma.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label htmlFor="proyectoPDM" className="block text-sm font-medium mb-1">
-                    Proyecto/Actividad PDM <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="proyectoPDM"
-                    value={selectedProyectoPDM}
-                    onChange={(e) => {
-                      console.log("Proyecto PDM seleccionado:", e.target.value)
-                      setSelectedProyectoPDM(e.target.value)
-                    }}
-                    disabled={!selectedSubprogramaPDM}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    aria-label="Seleccionar Proyecto PDM"
-                  >
-                    <option value="">Seleccione un Proyecto/Actividad PDM</option>
-                    {proyectosPDM.map((proyecto) => (
-                      <option key={proyecto} value={proyecto}>
-                        {proyecto}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </>
-            )}
+          <div className="px-4 py-6">
+            <PlanAccionFormSections
+              item={item}
+              errors={errors}
+              fechaInicioDate={fechaInicioDate}
+              fechaFinDate={fechaFinDate}
+              updateField={updateField}
+              setFechaInicioDate={setFechaInicioDate}
+              setFechaFinDate={setFechaFinDate}
+              // Props para Plan Decenal
+              incluirPlanDecenal={incluirPlanDecenal}
+              setIncluirPlanDecenal={setIncluirPlanDecenal}
+              selectedPlan={selectedPlan}
+              setSelectedPlan={setSelectedPlan}
+              selectedMacroobjetivo={selectedMacroobjetivo}
+              setSelectedMacroobjetivo={setSelectedMacroobjetivo}
+              selectedObjetivo={selectedObjetivo}
+              setSelectedObjetivo={setSelectedObjetivo}
+              macroobjetivos={macroobjetivos}
+              objetivos={objetivos}
+              planesDecenales={planesDecenales}
+              // Props para PDM
+              incluirPDM={incluirPDM}
+              setIncluirPDM={setIncluirPDM}
+              selectedProgramaPDM={selectedProgramaPDM}
+              setSelectedProgramaPDM={setSelectedProgramaPDM}
+              selectedSubprogramaPDM={selectedSubprogramaPDM}
+              setSelectedSubprogramaPDM={setSelectedSubprogramaPDM}
+              selectedProyectoPDM={selectedProyectoPDM}
+              setSelectedProyectoPDM={setSelectedProyectoPDM}
+              subprogramasPDM={subprogramasPDM}
+              proyectosPDM={proyectosPDM}
+            />
           </div>
         </ScrollArea>
         <DialogFooter>
@@ -975,47 +500,106 @@ export function PlanAccionAddDialog({
               console.log("   selectedPlan:", selectedPlan)
               console.log("   selectedMacroobjetivo:", selectedMacroobjetivo)
               console.log("   selectedObjetivo:", selectedObjetivo)
+              
+              // Solo validar campos del Plan Decenal si está habilitado
+              if (incluirPlanDecenal) {
+                // Validar que si se ha marcado incluir Plan Decenal, se hayan seleccionado todos los campos
+                if (!selectedPlan) {
+                  alert("Si incluye Plan Decenal, por favor seleccione un Plan")
+                  return
+                }
 
-              // Validar campos del Plan Decenal
-              if (!selectedPlan) {
-                alert("Por favor seleccione un Plan Decenal")
-                return
+                if (!selectedMacroobjetivo) {
+                  alert("Si incluye Plan Decenal, por favor seleccione un Macroobjetivo")
+                  return
+                }
+
+                if (!selectedObjetivo) {
+                  alert("Si incluye Plan Decenal, por favor seleccione un Objetivo")
+                  return
+                }
               }
 
-              if (!selectedMacroobjetivo) {
-                alert("Por favor seleccione un Macroobjetivo")
-                return
+              // Forzar actualización de los campos del Plan Decenal ANTES del envío solo si está habilitado
+              console.log("🔄 ACTUALIZANDO CAMPOS SEGÚN CONFIGURACIÓN...")
+              
+              // Crear objeto final con los valores más actuales
+              let finalFormData = { ...item }
+              
+              // Solo incluir campos del Plan Decenal si está habilitado
+              if (incluirPlanDecenal) {
+                console.log("🔄 ACTUALIZANDO CAMPOS PLAN DECENAL...")
+                updateField("metaDecenal", selectedPlan || "")
+                updateField("macroobjetivoDecenal", selectedMacroobjetivo || "")
+                updateField("objetivoDecenal", selectedObjetivo || "")
+                
+                // Incluir en datos finales
+                finalFormData = {
+                  ...finalFormData,
+                  metaDecenal: selectedPlan || "",
+                  macroobjetivoDecenal: selectedMacroobjetivo || "",
+                  objetivoDecenal: selectedObjetivo || "",
+                }
+              } else {
+                // Limpiar campos si no está habilitado
+                finalFormData = {
+                  ...finalFormData,
+                  metaDecenal: "",
+                  macroobjetivoDecenal: "",
+                  objetivoDecenal: "",
+                }
               }
-
-              if (!selectedObjetivo) {
-                alert("Por favor seleccione un Objetivo")
-                return
-              }
-
-              // Forzar actualización de los campos del Plan Decenal ANTES del envío
-              console.log("🔄 FORZANDO ACTUALIZACIÓN DE CAMPOS PLAN DECENAL...")
-              updateField("metaDecenal", selectedPlan)
-              updateField("macroobjetivoDecenal", selectedMacroobjetivo)
-              updateField("objetivoDecenal", selectedObjetivo)
-
+              
               // Esperar un momento para que se actualice el estado
               await new Promise(resolve => setTimeout(resolve, 100))
-
-              console.log("📋 Estado DESPUÉS de forzar actualización:", item)
-
-              // Crear objeto final con los valores más actuales para estar seguro
-              const finalFormData = {
-                ...item,
-                metaDecenal: selectedPlan,
-                macroobjetivoDecenal: selectedMacroobjetivo,
-                objetivoDecenal: selectedObjetivo,
-              }
+              
+              console.log("📋 Estado DESPUÉS de forzar actualización:", finalFormData)
 
               console.log("🎯 DATOS FINALES GARANTIZADOS:", finalFormData)
               console.log("🔍 VERIFICACIÓN FINAL DE CAMPOS PLAN DECENAL:")
               console.log("   metaDecenal:", finalFormData.metaDecenal)
               console.log("   macroobjetivoDecenal:", finalFormData.macroobjetivoDecenal)
               console.log("   objetivoDecenal:", finalFormData.objetivoDecenal)
+              
+              // Actualizar campos del PDM si está habilitado
+              if (incluirPDM) {
+                // Validar que si se ha marcado incluir PDM, se hayan seleccionado todos los campos
+                if (!selectedProgramaPDM) {
+                  alert("Si incluye PDM, por favor seleccione un Programa")
+                  return
+                }
+
+                if (!selectedSubprogramaPDM) {
+                  alert("Si incluye PDM, por favor seleccione un Subprograma")
+                  return
+                }
+
+                if (!selectedProyectoPDM) {
+                  alert("Si incluye PDM, por favor seleccione un Proyecto")
+                  return
+                }
+                
+                // Actualizar campos PDM en datos finales
+                finalFormData = {
+                  ...finalFormData,
+                  programaPDM: selectedProgramaPDM || "",
+                  subprogramaPDM: selectedSubprogramaPDM || "",
+                  proyectoPDM: selectedProyectoPDM || "",
+                }
+              } else {
+                // Limpiar campos PDM si no está habilitado
+                finalFormData = {
+                  ...finalFormData,
+                  programaPDM: "",
+                  subprogramaPDM: "",
+                  proyectoPDM: "",
+                }
+              }
+              
+              console.log("🔍 VERIFICACIÓN FINAL DE CAMPOS PDM:")
+              console.log("   programaPDM:", finalFormData.programaPDM)
+              console.log("   subprogramaPDM:", finalFormData.subprogramaPDM)
+              console.log("   proyectoPDM:", finalFormData.proyectoPDM)
 
               // Validar que los campos básicos estén completos
               if (
@@ -1031,7 +615,24 @@ export function PlanAccionAddDialog({
                 return
               }
 
+              // Asegurar que los campos demográficos se incluyan correctamente
+              finalFormData = {
+                ...finalFormData,
+                grupoEtareo: item.grupoEtareo || "",
+                grupoPoblacion: item.grupoPoblacion || "",
+                zona: item.zona || "",
+                grupoEtnico: item.grupoEtnico || "",
+                cantidad: item.cantidad || ""
+              }
+
               console.log("✅ Enviando datos directamente a onSubmit...")
+              console.log("📊 Datos demográficos:", {
+                grupoEtareo: finalFormData.grupoEtareo,
+                grupoPoblacion: finalFormData.grupoPoblacion,
+                zona: finalFormData.zona,
+                grupoEtnico: finalFormData.grupoEtnico,
+                cantidad: finalFormData.cantidad
+              })
               
               // Enviar los datos directamente asegurando que tienen los campos del Plan Decenal
               onSubmit(finalFormData)

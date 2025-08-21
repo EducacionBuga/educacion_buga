@@ -224,8 +224,9 @@ export function MatrizMejorada({
             {isExpanded && (
               <div className="space-y-4 border-t pt-4">
                 <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as any)} className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="general">General</TabsTrigger>
+                    <TabsTrigger value="demografica">Demográfica</TabsTrigger>
                     <TabsTrigger value="decenal">Plan Decenal</TabsTrigger>
                     <TabsTrigger value="pdm">PDM 2024-2027</TabsTrigger>
                   </TabsList>
@@ -256,6 +257,44 @@ export function MatrizMejorada({
                         <p className="text-sm font-medium text-muted-foreground">Indicadores</p>
                         <p className="text-sm">{item.indicadores || "-"}</p>
                       </div>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="demografica" className="mt-4">
+                    <div className="space-y-4">
+                      {item.zona || item.grupoEtnico || item.grupoEtareo || item.grupoPoblacion || item.cantidad ? (
+                        <>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground">Zona</p>
+                              <p className="text-sm">{item.zona || "No especificada"}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground">Grupo Étnico</p>
+                              <p className="text-sm">{item.grupoEtnico || "No especificado"}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground">Grupo Etáreo</p>
+                              <p className="text-sm">{item.grupoEtareo || "No especificado"}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground">Grupo de Población</p>
+                              <p className="text-sm">{item.grupoPoblacion || "No especificado"}</p>
+                            </div>
+                            <div className="md:col-span-2">
+                              <p className="text-sm font-medium text-muted-foreground">Cantidad</p>
+                              <p className="text-sm">{item.cantidad ? (typeof item.cantidad === 'number' ? item.cantidad.toLocaleString() : item.cantidad) : "No especificada"}</p>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <p>No se ha registrado información demográfica</p>
+                          <p className="text-xs mt-2 text-gray-500">
+                            Puede agregar esta información editando el plan de acción
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
                   

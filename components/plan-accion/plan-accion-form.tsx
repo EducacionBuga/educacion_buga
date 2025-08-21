@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { toast } from "@/components/ui/use-toast"
 import { usePlanAccionStore } from "@/hooks/use-plan-accion-store"
+import { useProgramasMetas } from "@/hooks/use-programas-metas"
+import { ProgramaMetaSelector } from "@/components/ui/smart-selector"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import DatePicker from "react-datepicker"
@@ -23,6 +25,7 @@ interface PlanAccionFormProps {
 
 export function PlanAccionForm({ areaId, isOpen, onClose }: PlanAccionFormProps) {
   const { addItem, testConnection, submitting } = usePlanAccionStore(areaId as any)
+  const { programas, getMetasByPrograma, loading: loadingProgramas } = useProgramasMetas()
 
   const [newItem, setNewItem] = useState<Omit<PlanAccionItem, "id">>({
     programa: "",
@@ -43,6 +46,17 @@ export function PlanAccionForm({ areaId, isOpen, onClose }: PlanAccionFormProps)
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [fechaInicioDate, setFechaInicioDate] = useState<Date | null>(null)
   const [fechaFinDate, setFechaFinDate] = useState<Date | null>(null)
+  const [metasDisponibles, setMetasDisponibles] = useState<string[]>([])
+
+  // Actualizar metas disponibles cuando cambia el programa
+  useEffect(() => {
+    if (newItem.programa) {
+      const metas = getMetasByPrograma(newItem.programa)
+      setMetasDisponibles(metas)
+    } else {
+      setMetasDisponibles([])
+    }
+  }, [newItem.programa, getMetasByPrograma])
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {}
@@ -172,33 +186,47 @@ export function PlanAccionForm({ areaId, isOpen, onClose }: PlanAccionFormProps)
           <DialogTitle>Añadir Nuevo Elemento</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          <div>
-            <label htmlFor="programa" className="block text-sm font-medium mb-1">
-              Programa <span className="text-red-500">*</span>
-            </label>
-            <Input
-              id="programa"
-              value={newItem.programa}
-              onChange={(e) => {
-                setNewItem({ ...newItem, programa: e.target.value })
-                if (formErrors.programa && e.target.value.trim() !== "") {
-                  setFormErrors((prev) => {
-                    const updated = { ...prev }
-                    delete updated.programa
-                    return updated
-                  })
-                }
-              }}
-              placeholder="Nombre del programa"
-              className={`w-full ${formErrors.programa ? "border-red-500" : ""}`}
-            />
-            {formErrors.programa && (
-              <p className="text-red-500 text-xs mt-1 flex items-center">
-                <AlertCircle className="h-3 w-3 mr-1" />
-                {formErrors.programa}
-              </p>
-            )}
-          </div>
+          <ProgramaMetaSelector
+            programas={programas}
+            metas={metasDisponibles}
+            selectedPrograma={newItem.programa}
+            selectedMeta={newItem.meta}
+            onProgramaChange={(programa) => {
+              setNewItem({ ...newItem, programa, meta: "" })
+              if (formErrors.programa && programa.trim() !== "") {
+                setFormErrors((prev) => {
+                  const updated = { ...prev }
+                  delete updated.programa
+                  return updated
+                })
+              }
+            }}
+            onMetaChange={(meta) => {
+              setNewItem({ ...newItem, meta })
+              if (formErrors.meta && meta.trim() !== "") {
+                setFormErrors((prev) => {
+                  const updated = { ...prev }
+                  delete updated.meta
+                  return updated
+                })
+              }
+            }}
+            programaError={!!formErrors.programa}
+            metaError={!!formErrors.meta}
+            disabled={submitting || loadingProgramas}
+          />
+          {formErrors.programa && (
+            <p className="text-red-500 text-xs mt-1 flex items-center">
+              <AlertCircle className="h-3 w-3 mr-1" />
+              {formErrors.programa}
+            </p>
+          )}
+          {formErrors.meta && (
+            <p className="text-red-500 text-xs mt-1 flex items-center">
+              <AlertCircle className="h-3 w-3 mr-1" />
+              {formErrors.meta}
+            </p>
+          )}
 
           <div>
             <label htmlFor="objetivo" className="block text-sm font-medium mb-1">
@@ -228,33 +256,7 @@ export function PlanAccionForm({ areaId, isOpen, onClose }: PlanAccionFormProps)
             )}
           </div>
 
-          <div>
-            <label htmlFor="meta" className="block text-sm font-medium mb-1">
-              Meta <span className="text-red-500">*</span>
-            </label>
-            <Textarea
-              id="meta"
-              value={newItem.meta}
-              onChange={(e) => {
-                setNewItem({ ...newItem, meta: e.target.value })
-                if (formErrors.meta && e.target.value.trim() !== "") {
-                  setFormErrors((prev) => {
-                    const updated = { ...prev }
-                    delete updated.meta
-                    return updated
-                  })
-                }
-              }}
-              placeholder="Meta a alcanzar"
-              className={`w-full ${formErrors.meta ? "border-red-500" : ""}`}
-            />
-            {formErrors.meta && (
-              <p className="text-red-500 text-xs mt-1 flex items-center">
-                <AlertCircle className="h-3 w-3 mr-1" />
-                {formErrors.meta}
-              </p>
-            )}
-          </div>
+
 
           <div>
             <label htmlFor="presupuesto" className="block text-sm font-medium mb-1">

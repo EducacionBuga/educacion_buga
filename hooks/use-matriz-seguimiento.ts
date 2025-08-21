@@ -28,6 +28,12 @@ export interface MatrizSeguimientoItem {
   programaPDM?: string
   subprogramaPDM?: string
   proyectoPDM?: string
+  // Campos demográficos
+  zona?: string
+  grupoEtnico?: string
+  grupoEtareo?: string
+  grupoPoblacion?: string
+  cantidad?: number
   validacion?: PlanValidacion
 }
 
@@ -129,6 +135,11 @@ export const useMatrizSeguimiento = () => {
     programa_pdm,
     subprograma_pdm,
     proyecto_pdm,
+    zona,
+    grupo_etnico,
+    grupo_etareo,
+    grupo_poblacion,
+    cantidad,
     created_at,
     updated_at
   `)
@@ -198,6 +209,12 @@ export const useMatrizSeguimiento = () => {
           programaPDM: plan.programa_pdm || "",
           subprogramaPDM: plan.subprograma_pdm || "",
           proyectoPDM: plan.proyecto_pdm || "",
+          // Mapear campos demográficos desde la base de datos
+          zona: plan.zona || "",
+          grupoEtnico: plan.grupo_etnico || "",
+          grupoEtareo: plan.grupo_etareo || "",
+          grupoPoblacion: plan.grupo_poblacion || "",
+          cantidad: plan.cantidad || undefined,
         })
       })
 

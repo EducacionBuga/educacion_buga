@@ -10,7 +10,7 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
     case "Completado":
       return (
         <Badge variant="outline" className={`bg-green-500/10 text-green-500 border-green-500/20 ${className}`}>
-          Completado
+          Completado <span className="text-xs font-normal ml-1">completa</span>
         </Badge>
       )
     case "En progreso":

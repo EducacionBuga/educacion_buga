@@ -139,7 +139,15 @@ export function usePlanAccionStore(areaSlug: AreaId) {
             comentarios,
             meta_decenal,
             macroobjetivo_decenal,
-            objetivo_decenal
+            objetivo_decenal,
+            programa_pdm,
+            subprograma_pdm,
+            proyecto_pdm,
+            grupo_etareo,
+            grupo_poblacion,
+            zona,
+            grupo_etnico,
+            cantidad
           `)
           .eq("area_id", areaId)
           .order("created_at", { ascending: false })
@@ -175,6 +183,14 @@ export function usePlanAccionStore(areaSlug: AreaId) {
             metaDecenal: item.meta_decenal || "",
             macroobjetivoDecenal: item.macroobjetivo_decenal || "",
             objetivoDecenal: item.objetivo_decenal || "",
+            programaPDM: item.programa_pdm || "",
+            subprogramaPDM: item.subprograma_pdm || "",
+            proyectoPDM: item.proyecto_pdm || "",
+            grupoEtareo: item.grupo_etareo || "",
+            grupoPoblacion: item.grupo_poblacion || "",
+            zona: item.zona || "",
+            grupoEtnico: item.grupo_etnico || "",
+            cantidad: item.cantidad !== null ? String(item.cantidad) : "",
           }))
           setItems(formattedItems)
         } else {
@@ -296,7 +312,7 @@ export function usePlanAccionStore(areaSlug: AreaId) {
       // Preparar datos para Supabase - VERIFICAR CADA CAMPO DEL PLAN DECENAL
       const insertData = {
         id,
-        area_id: areaId,
+        area_id: areaId, // CAMPO OBLIGATORIO: ID del área
         programa: newItem.programa || "",
         objetivo: newItem.objetivo || "",
         meta: newItem.meta || "",
@@ -314,6 +330,16 @@ export function usePlanAccionStore(areaSlug: AreaId) {
         meta_decenal: newItem.metaDecenal,
         macroobjetivo_decenal: newItem.macroobjetivoDecenal,
         objetivo_decenal: newItem.objetivoDecenal,
+        // CAMPOS DEL PDM 2024-2027
+        programa_pdm: newItem.programaPDM || null,
+        subprograma_pdm: newItem.subprogramaPDM || null,
+        proyecto_pdm: newItem.proyectoPDM || null,
+        // CAMPOS DE INFORMACIÓN DEMOGRÁFICA
+        grupo_etareo: newItem.grupoEtareo || null,
+        grupo_poblacion: newItem.grupoPoblacion || null,
+        zona: newItem.zona || null,
+        grupo_etnico: newItem.grupoEtnico || null,
+        cantidad: newItem.cantidad ? Number(newItem.cantidad) : null,
         usuario_id: userData.user?.id,
       }
 
@@ -412,6 +438,16 @@ export function usePlanAccionStore(areaSlug: AreaId) {
       if (updatedFields.macroobjetivoDecenal !== undefined)
         supabaseData.macroobjetivo_decenal = updatedFields.macroobjetivoDecenal
       if (updatedFields.objetivoDecenal !== undefined) supabaseData.objetivo_decenal = updatedFields.objetivoDecenal
+      // Campos del PDM 2024-2027
+      if (updatedFields.programaPDM !== undefined) supabaseData.programa_pdm = updatedFields.programaPDM
+      if (updatedFields.subprogramaPDM !== undefined) supabaseData.subprograma_pdm = updatedFields.subprogramaPDM
+      if (updatedFields.proyectoPDM !== undefined) supabaseData.proyecto_pdm = updatedFields.proyectoPDM
+      // Campos de información demográfica
+      if (updatedFields.grupoEtareo !== undefined) supabaseData.grupo_etareo = updatedFields.grupoEtareo
+      if (updatedFields.grupoPoblacion !== undefined) supabaseData.grupo_poblacion = updatedFields.grupoPoblacion
+      if (updatedFields.zona !== undefined) supabaseData.zona = updatedFields.zona
+      if (updatedFields.grupoEtnico !== undefined) supabaseData.grupo_etnico = updatedFields.grupoEtnico
+      if (updatedFields.cantidad !== undefined) supabaseData.cantidad = updatedFields.cantidad ? Number(updatedFields.cantidad) : null
 
       console.log("Datos a actualizar en Supabase:", supabaseData)
 

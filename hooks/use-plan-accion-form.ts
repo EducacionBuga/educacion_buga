@@ -37,6 +37,12 @@ const initialState: PlanAccionFormState = {
     programaPDM: "",
     subprogramaPDM: "",
     proyectoPDM: "",
+    // Agregar campos de Información Demográfica
+    grupoEtareo: "",
+    grupoPoblacion: "",
+    zona: "",
+    grupoEtnico: "",
+    cantidad: "",
   },
   errors: {},
   fechaInicioDate: null,
@@ -104,11 +110,37 @@ function formReducer(state: PlanAccionFormState, action: PlanAccionFormAction): 
       return initialState
     case "SET_ITEM":
       const item = action.payload
+      
+      // Función auxiliar para parsear fechas en formato dd/MM/yyyy
+      const parseDate = (dateString: string): Date | null => {
+        if (!dateString) return null
+        
+        try {
+          // Si ya está en formato ISO, usar directamente
+          if (dateString.includes('T')) {
+            return new Date(dateString)
+          }
+          
+          // Si está en formato dd/MM/yyyy, convertir
+          const parts = dateString.split('/')
+          if (parts.length === 3) {
+            const [day, month, year] = parts.map(Number)
+            const date = new Date(year, month - 1, day)
+            return isNaN(date.getTime()) ? null : date
+          }
+          
+          return null
+        } catch (error) {
+          console.error('Error parsing date:', dateString, error)
+          return null
+        }
+      }
+      
       return {
         ...state,
         item: { ...item },
-        fechaInicioDate: item.fechaInicio ? new Date(item.fechaInicio) : null,
-        fechaFinDate: item.fechaFin ? new Date(item.fechaFin) : null,
+        fechaInicioDate: parseDate(item.fechaInicio),
+        fechaFinDate: parseDate(item.fechaFin),
         errors: {},
       }
     case "SET_ERRORS":
@@ -265,27 +297,33 @@ export function usePlanAccionForm(onSubmit: (item: PlanAccionItem) => void) {
       }
     }
 
-    // Validar campos del Plan Decenal (solo si están completos, indicando que se seleccionó)
-    if (item.metaDecenal && !item.macroobjetivoDecenal) {
-      errors.macroobjetivoDecenal = "El Macroobjetivo es obligatorio"
-    }
-
-    if (item.metaDecenal && !item.objetivoDecenal) {
-      errors.objetivoDecenal = "El Objetivo Decenal es obligatorio"
-    }
-
-    // Validar campos del PDM (solo si están completos, indicando que se seleccionó)
-    if (item.programaPDM && !item.subprogramaPDM) {
-      errors.subprogramaPDM = "El Subprograma PDM es obligatorio"
-    }
-
-    if (item.programaPDM && !item.proyectoPDM) {
-      errors.proyectoPDM = "El Proyecto/Actividad PDM es obligatorio"
-    }
+    // Plan Decenal y PDM son completamente opcionales - no se validan como obligatorios
 
     dispatch({ type: "SET_ERRORS", payload: errors })
     return Object.keys(errors).length === 0
   }, [state])
+
+  // Función para generar mensaje de campos faltantes
+  const getValidationMessage = useCallback((errors: PlanAccionFormErrors) => {
+    const missingFields = []
+    
+    if (errors.programa) missingFields.push("Programa")
+    if (errors.objetivo) missingFields.push("Objetivo")
+    if (errors.meta) missingFields.push("Meta")
+    if (errors.presupuesto) missingFields.push("Presupuesto")
+    if (errors.acciones) missingFields.push("Acciones")
+    if (errors.indicadores) missingFields.push("Indicadores")
+    if (errors.responsable) missingFields.push("Responsable")
+    if (errors.fechaInicio) missingFields.push("Fecha de Inicio")
+    if (errors.fechaFin) missingFields.push("Fecha de Fin")
+    if (errors.porcentajeAvance) missingFields.push("Porcentaje de Avance")
+    
+    if (missingFields.length > 0) {
+      return `Por favor complete los siguientes campos obligatorios: ${missingFields.join(", ")}`
+    }
+    
+    return "Por favor revise los campos marcados en rojo"
+  }, [])
 
   // Función para manejar el envío del formulario
   const handleSubmit = useCallback(() => {
@@ -298,6 +336,12 @@ export function usePlanAccionForm(onSubmit: (item: PlanAccionItem) => void) {
     console.log("programaPDM:", state.item.programaPDM)
     console.log("subprogramaPDM:", state.item.subprogramaPDM)
     console.log("proyectoPDM:", state.item.proyectoPDM)
+    console.log("📊 VERIFICANDO CAMPOS DEMOGRÁFICOS EN HANDLESUBMIT:")
+    console.log("grupoEtareo:", state.item.grupoEtareo)
+    console.log("grupoPoblacion:", state.item.grupoPoblacion)
+    console.log("zona:", state.item.zona)
+    console.log("grupoEtnico:", state.item.grupoEtnico)
+    console.log("cantidad:", state.item.cantidad)
     
     if (validateForm()) {
       console.log("✅ Formulario válido, enviando datos:", state.item)
@@ -305,8 +349,10 @@ export function usePlanAccionForm(onSubmit: (item: PlanAccionItem) => void) {
       dispatch({ type: "RESET" })
     } else {
       console.log("❌ Formulario inválido, errores:", state.errors)
+      const message = getValidationMessage(state.errors)
+      alert(message)
     }
-  }, [validateForm, state.item, state.errors, onSubmit])
+  }, [validateForm, state.item, state.errors, onSubmit, getValidationMessage])
 
   // Función para resetear el formulario
   const resetForm = useCallback(() => {

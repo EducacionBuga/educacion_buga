@@ -29,6 +29,12 @@ export interface PlanAccionItem {
   programaPDM: string
   subprogramaPDM: string
   proyectoPDM: string
+  // Campos de Información Demográfica
+  grupoEtareo?: string
+  grupoPoblacion?: string
+  zona?: string
+  grupoEtnico?: string
+  cantidad?: string
 }
 
 export interface PlanAccionFormErrors {

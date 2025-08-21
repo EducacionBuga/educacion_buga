@@ -43,6 +43,7 @@
     "@radix-ui/react-tooltip": "latest",
     "@supabase/auth-helpers-nextjs": "latest",
     "@supabase/supabase-js": "^2.49.8",
+    "@tailwindcss/line-clamp": "^0.4.4",
     "@tanstack/react-table": "latest",
     "apexcharts": "latest",
     "autoprefixer": "^10.4.20",

@@ -182,7 +182,12 @@ export function usePlanAccionService(areaSlug: string) {
           objetivo_docenal,
           programa_pdm,
           subprograma_pdm,
-          proyecto_pdm
+          proyecto_pdm,
+          grupo_etareo,
+          grupo_poblacion,
+          zona,
+          grupo_etnico,
+          cantidad
         `)
         .eq("area_id", areaId)
         .order("created_at", { ascending: false })
@@ -218,6 +223,12 @@ export function usePlanAccionService(areaSlug: string) {
         programaPDM: item.programa_pdm || "",
         subprogramaPDM: item.subprograma_pdm || "",
         proyectoPDM: item.proyecto_pdm || "",
+        // Mapear campos demográficos de snake_case a camelCase
+        grupoEtareo: item.grupo_etareo || "",
+        grupoPoblacion: item.grupo_poblacion || "",
+        zona: item.zona || "",
+        grupoEtnico: item.grupo_etnico || "",
+        cantidad: item.cantidad !== null ? String(item.cantidad) : "",
       }))
 
       setItems(formattedItems)
@@ -303,6 +314,12 @@ export function usePlanAccionService(areaSlug: string) {
           programa_pdm: newItem.programaPDM || null,
           subprograma_pdm: newItem.subprogramaPDM || null,
           proyecto_pdm: newItem.proyectoPDM || null,
+          // CAMPOS DEMOGRÁFICOS - Mapear de camelCase a snake_case
+          grupo_etareo: newItem.grupoEtareo || null,
+          grupo_poblacion: newItem.grupoPoblacion || null,
+          zona: newItem.zona || null,
+          grupo_etnico: newItem.grupoEtnico || null,
+          cantidad: newItem.cantidad ? Number(newItem.cantidad) : null,
         }
 
         console.log("🔍 DATOS PREPARADOS PARA INSERCIÓN EN SUPABASE:", insertData)
@@ -314,6 +331,12 @@ export function usePlanAccionService(areaSlug: string) {
         console.log("   programa_pdm:", insertData.programa_pdm)
         console.log("   subprograma_pdm:", insertData.subprograma_pdm)
         console.log("   proyecto_pdm:", insertData.proyecto_pdm)
+        console.log("📊 VERIFICACIÓN CAMPOS DEMOGRÁFICOS:")
+        console.log("   grupo_etareo:", insertData.grupo_etareo)
+        console.log("   grupo_poblacion:", insertData.grupo_poblacion)
+        console.log("   zona:", insertData.zona)
+        console.log("   grupo_etnico:", insertData.grupo_etnico)
+        console.log("   cantidad:", insertData.cantidad)
         console.log("   usuario_id:", insertData.usuario_id)
 
         // Insertar en Supabase
@@ -383,6 +406,12 @@ export function usePlanAccionService(areaSlug: string) {
         if (updatedItem.programaPDM !== undefined) updateData.programa_pdm = updatedItem.programaPDM
         if (updatedItem.subprogramaPDM !== undefined) updateData.subprograma_pdm = updatedItem.subprogramaPDM
         if (updatedItem.proyectoPDM !== undefined) updateData.proyecto_pdm = updatedItem.proyectoPDM
+        // Mapear campos demográficos de camelCase a snake_case
+        if (updatedItem.grupoEtareo !== undefined) updateData.grupo_etareo = updatedItem.grupoEtareo
+        if (updatedItem.grupoPoblacion !== undefined) updateData.grupo_poblacion = updatedItem.grupoPoblacion
+        if (updatedItem.zona !== undefined) updateData.zona = updatedItem.zona
+        if (updatedItem.grupoEtnico !== undefined) updateData.grupo_etnico = updatedItem.grupoEtnico
+        if (updatedItem.cantidad !== undefined) updateData.cantidad = updatedItem.cantidad ? Number(updatedItem.cantidad) : null
 
         // Actualizar en Supabase
         const { data, error } = await supabase.from("plan_accion").update(updateData).eq("id", id).select().single()
