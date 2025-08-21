@@ -1,11 +1,28 @@
 // lib/supabase-client-production.ts
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+// Singleton para evitar múltiples instancias
+let supabaseInstance: SupabaseClient | null = null;
+
 /**
- * Cliente Supabase optimizado para producción
+ * Limpiar la instancia singleton (útil para testing o reset)
+ */
+export function clearSupabaseInstance(): void {
+  console.log('🧹 [PROD] Limpiando instancia singleton de Supabase');
+  supabaseInstance = null;
+  rpcFunctionCache = null;
+}
+
+/**
+ * Cliente Supabase optimizado para producción con patrón singleton
  * Maneja automáticamente las diferencias entre entornos y problemas de timeout
  */
-export function createSupabaseClientForProduction() {
+export function createSupabaseClientForProduction(): SupabaseClient {
+  // Si ya existe una instancia, devolverla
+  if (supabaseInstance) {
+    console.log('🔄 [PROD] Reutilizando instancia existente de Supabase');
+    return supabaseInstance;
+  }
   // En producción, las variables pueden tener nombres diferentes
   const possibleUrls = [
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -45,7 +62,8 @@ export function createSupabaseClientForProduction() {
     environment: process.env.NODE_ENV
   });
 
-  return createClient(url, key, {
+  // Crear la instancia una sola vez
+  supabaseInstance = createClient(url, key, {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
@@ -80,14 +98,17 @@ export function createSupabaseClientForProduction() {
          }).finally(() => {
            clearTimeout(timeoutId);
          });
-       }
-    },
-    realtime: {
-      timeout: 30000,
-      heartbeatIntervalMs: 30000,
-      reconnectAfterMs: (tries: number) => Math.min(tries * 2000, 30000)
-    }
-  });
+        }
+     },
+     realtime: {
+       timeout: 30000,
+       heartbeatIntervalMs: 30000,
+       reconnectAfterMs: (tries: number) => Math.min(tries * 2000, 30000)
+     }
+   });
+   
+   console.log('🆕 [PROD] Nueva instancia de Supabase creada');
+   return supabaseInstance;
 }
 
 /**
@@ -127,35 +148,43 @@ export async function productionSafeLogin(
     
     console.log('✅ [PROD] Login exitoso');
     
-    // Intentar obtener datos del usuario con función RPC (con fallback)
-    try {
-      console.log('🔍 [PROD] Intentando obtener datos con función RPC...');
-      
-      const rpcPromise = client
-        .rpc('get_user_role', { user_id: result.data.user.id })
-        .single();
-      
-      const rpcTimeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
-          reject(new Error('RPC timeout'));
-        }, 15000); // 15 segundos para RPC
-      });
-      
-      const rpcResult = await Promise.race([rpcPromise, rpcTimeoutPromise]) as any;
-      
-      if (rpcResult.data && !rpcResult.error) {
-        console.log('✅ [PROD] Datos obtenidos con función RPC');
-        return {
-          success: true,
-          data: {
-            ...result.data,
-            userProfile: rpcResult.data
-          }
-        };
-      }
-    } catch (rpcError: any) {
-      console.warn('⚠️ [PROD] RPC falló, usando fallback:', rpcError.message);
-    }
+    // Intentar obtener datos del usuario con función RPC (con fallback y cache)
+     const rpcExists = await checkGetUserRoleFunction(client);
+     
+     if (rpcExists) {
+       try {
+         console.log('🔍 [PROD] Intentando obtener datos con función RPC...');
+         
+         const rpcPromise = client
+           .rpc('get_user_role', { user_id: result.data.user.id })
+           .single();
+         
+         const rpcTimeoutPromise = new Promise((_, reject) => {
+           setTimeout(() => {
+             reject(new Error('RPC timeout'));
+           }, 15000); // 15 segundos para RPC
+         });
+         
+         const rpcResult = await Promise.race([rpcPromise, rpcTimeoutPromise]) as any;
+         
+         if (rpcResult.data && !rpcResult.error) {
+           console.log('✅ [PROD] Datos obtenidos con función RPC');
+           return {
+             success: true,
+             data: {
+               ...result.data,
+               userProfile: rpcResult.data
+             }
+           };
+         } else if (rpcResult.error) {
+           console.warn('⚠️ [PROD] Error en RPC, usando fallback:', rpcResult.error.message);
+         }
+       } catch (rpcError: any) {
+         console.warn('⚠️ [PROD] RPC falló, usando fallback:', rpcError.message);
+       }
+     } else {
+       console.log('📋 [PROD] Función RPC no disponible, usando fallback directo');
+     }
     
     // Fallback: usar solo datos de auth
     console.log('📋 [PROD] Usando datos de auth como fallback');
@@ -183,10 +212,21 @@ export async function productionSafeLogin(
   }
 }
 
+// Cache para evitar verificaciones repetidas
+let rpcFunctionCache: { exists: boolean; lastCheck: number } | null = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
 /**
- * Verificar si la función get_user_role existe en la base de datos
+ * Verificar si la función get_user_role existe en la base de datos con cache
  */
 export async function checkGetUserRoleFunction(client: SupabaseClient): Promise<boolean> {
+  // Verificar cache primero
+  const now = Date.now();
+  if (rpcFunctionCache && (now - rpcFunctionCache.lastCheck) < CACHE_DURATION) {
+    console.log('📋 [PROD] Usando resultado cacheado para función RPC:', rpcFunctionCache.exists);
+    return rpcFunctionCache.exists;
+  }
+  
   try {
     console.log('🧪 [PROD] Verificando función get_user_role...');
     
@@ -195,16 +235,35 @@ export async function checkGetUserRoleFunction(client: SupabaseClient): Promise<
       .rpc('get_user_role', { user_id: '00000000-0000-0000-0000-000000000000' })
       .single();
     
-    // Si no hay error de "función no existe", la función está disponible
-    if (error && error.message.includes('function') && error.message.includes('does not exist')) {
-      console.error('❌ [PROD] Función get_user_role no existe en la base de datos');
-      return false;
+    let exists = true;
+    
+    // Verificar diferentes tipos de errores
+    if (error) {
+      if (error.message.includes('function') && error.message.includes('does not exist')) {
+        console.error('❌ [PROD] Función get_user_role no existe en la base de datos');
+        exists = false;
+      } else if (error.message.includes('Bad Request') || error.message.includes('400')) {
+        console.warn('⚠️ [PROD] Error 400 en función RPC - probablemente parámetros incorrectos, pero función existe');
+        exists = true; // La función existe, solo hay un error de parámetros
+      } else {
+        console.warn('⚠️ [PROD] Error desconocido en función RPC:', error.message);
+        exists = false;
+      }
     }
     
-    console.log('✅ [PROD] Función get_user_role está disponible');
-    return true;
+    // Guardar en cache
+    rpcFunctionCache = { exists, lastCheck: now };
+    
+    if (exists) {
+      console.log('✅ [PROD] Función get_user_role está disponible');
+    }
+    
+    return exists;
   } catch (error: any) {
     console.error('❌ [PROD] Error verificando función get_user_role:', error.message);
+    
+    // En caso de error, asumir que no existe y cachear por menos tiempo
+    rpcFunctionCache = { exists: false, lastCheck: now };
     return false;
   }
 }

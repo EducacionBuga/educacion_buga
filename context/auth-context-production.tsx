@@ -236,11 +236,11 @@ export function AuthProviderProduction({ children }: { children: React.ReactNode
       try {
         console.log('🚀 [PROD] Inicializando autenticación...')
         
-        // Verificar función RPC con timeout más tolerante
+        // Verificar función RPC solo una vez al inicializar
         try {
           const rpcExists = await checkGetUserRoleFunction(supabase)
           if (!rpcExists) {
-            console.warn('⚠️ [PROD] Función get_user_role no disponible, usando fallback')
+            console.warn('⚠️ [PROD] Función get_user_role no disponible, usando fallback para toda la sesión')
           }
         } catch (error: any) {
           console.warn('⚠️ [PROD] No se pudo verificar función RPC, continuando con fallback:', error.message)
