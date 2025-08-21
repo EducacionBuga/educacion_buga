@@ -29,13 +29,13 @@ export async function middleware(req: NextRequest) {
       timeoutPromise
     ]) as any
     
-    // Si está en una ruta protegida y no hay sesión, redirigir al login
+    // Si está en una ruta protegida y no hay sesión, redirigir al login (página principal)
     if (req.nextUrl.pathname.startsWith('/dashboard') && !session) {
-      return NextResponse.redirect(new URL('/auth/login', req.url))
+      return NextResponse.redirect(new URL('/', req.url))
     }
     
-    // Si está en login y ya tiene sesión, redirigir al dashboard
-    if (req.nextUrl.pathname.startsWith('/auth/login') && session) {
+    // Si está en la página principal y ya tiene sesión, redirigir al dashboard
+    if (req.nextUrl.pathname === '/' && session) {
       return NextResponse.redirect(new URL('/dashboard', req.url))
     }
     

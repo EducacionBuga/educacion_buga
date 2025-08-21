@@ -23,6 +23,10 @@ interface MatrizGeneralTabProps {
   setAreaFilter: (value: string) => void
   estadoFilter: string
   setEstadoFilter: (value: string) => void
+  fechaDesdeFilter: string
+  setFechaDesdeFilter: (value: string) => void
+  fechaHastaFilter: string
+  setFechaHastaFilter: (value: string) => void
   handleClearFilters: () => void
 }
 
@@ -39,6 +43,10 @@ export function MatrizGeneralTab({
   setAreaFilter,
   estadoFilter,
   setEstadoFilter,
+  fechaDesdeFilter,
+  setFechaDesdeFilter,
+  fechaHastaFilter,
+  setFechaHastaFilter,
   handleClearFilters,
 }: MatrizGeneralTabProps) {
   
@@ -70,6 +78,10 @@ export function MatrizGeneralTab({
         setAreaFilter={setAreaFilter}
         estadoFilter={estadoFilter}
         setEstadoFilter={setEstadoFilter}
+        fechaDesdeFilter={fechaDesdeFilter}
+        setFechaDesdeFilter={setFechaDesdeFilter}
+        fechaHastaFilter={fechaHastaFilter}
+        setFechaHastaFilter={setFechaHastaFilter}
         handleClearFilters={handleClearFilters}
       />
     </div>

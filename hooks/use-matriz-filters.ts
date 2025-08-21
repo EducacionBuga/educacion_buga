@@ -8,9 +8,11 @@ interface UseMatrizFiltersProps {
   searchTerm: string
   areaFilter: string
   estadoFilter: string
+  fechaDesdeFilter: string
+  fechaHastaFilter: string
 }
 
-export function useMatrizFilters({ matrizData, searchTerm, areaFilter, estadoFilter }: UseMatrizFiltersProps) {
+export function useMatrizFilters({ matrizData, searchTerm, areaFilter, estadoFilter, fechaDesdeFilter, fechaHastaFilter }: UseMatrizFiltersProps) {
   // Filtrar datos según los criterios
   const filteredData = useMemo(() => {
     return matrizData.filter((item) => {
@@ -27,9 +29,59 @@ export function useMatrizFilters({ matrizData, searchTerm, areaFilter, estadoFil
       // Filtro de estado
       const matchesEstado = estadoFilter === "todos" || item.estado === estadoFilter
 
-      return matchesSearch && matchesArea && matchesEstado
+      // Filtro de rango de fechas (considera tanto fecha de inicio como de fin)
+      const matchesFecha = (() => {
+        // Si no hay filtros de fecha, mostrar todo
+        if (!fechaDesdeFilter && !fechaHastaFilter) return true
+        
+        // Si solo hay una fecha seleccionada, mostrar todo (rango incompleto)
+        if (!fechaDesdeFilter || !fechaHastaFilter) return true
+        
+        // Si el item no tiene ninguna fecha, no mostrarlo cuando hay filtros activos
+        if (!item.fechaInicio && !item.fechaFin) return false
+        
+        try {
+          // Convertir fechas de filtro a objetos Date
+          const fechaDesde = new Date(fechaDesdeFilter)
+          const fechaHasta = new Date(fechaHastaFilter)
+          
+          // Función para verificar si una fecha está en el rango
+          const estaEnRango = (fechaString) => {
+            if (!fechaString) return false
+            
+            // Convertir fecha del item (formato dd/mm/yyyy a Date)
+            let fechaObj
+            if (fechaString.includes('/')) {
+              // Formato dd/mm/yyyy
+              const [dia, mes, año] = fechaString.split('/')
+              fechaObj = new Date(parseInt(año), parseInt(mes) - 1, parseInt(dia))
+            } else {
+              // Formato ISO o yyyy-mm-dd
+              fechaObj = new Date(fechaString)
+            }
+            
+            if (isNaN(fechaObj.getTime())) return false
+            
+            // Verificar si está dentro del rango
+            return fechaObj >= fechaDesde && fechaObj <= fechaHasta
+          }
+          
+          // Verificar si alguna de las fechas del plan está en el rango
+          const fechaInicioEnRango = estaEnRango(item.fechaInicio)
+          const fechaFinEnRango = estaEnRango(item.fechaFin)
+          
+          // Mostrar si cualquiera de las fechas está en el rango
+          return fechaInicioEnRango || fechaFinEnRango
+          
+        } catch (error) {
+          console.warn('Error al procesar fechas:', error)
+          return false
+        }
+      })()
+
+      return matchesSearch && matchesArea && matchesEstado && matchesFecha
     })
-  }, [matrizData, searchTerm, areaFilter, estadoFilter])
+  }, [matrizData, searchTerm, areaFilter, estadoFilter, fechaDesdeFilter, fechaHastaFilter])
 
   // Agrupar datos por área para la vista de áreas
   const dataByArea = useMemo(() => {

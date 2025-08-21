@@ -1,0 +1,846 @@
+
+TODO
+
+
+administración_todas_las_áreas
+Aplicado a: rol authenticated
+
+SELECCIONAR
+
+
+Administradores pueden ver estadísticas
+Aplicado a: rol public
+
+ACTUALIZAR
+
+
+Solo administradores pueden actualizar áreas
+Aplicado a: rol public
+
+BORRAR
+
+
+Solo administradores pueden eliminar áreas
+Aplicado a: rol public
+
+INSERTAR
+
+
+Solo administradores pueden insertar áreas
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+Todos pueden ver áreas
+Aplicado a: rol public
+
+carpetas
+
+Desactivar RLS
+
+Crear política
+
+BORRAR
+
+
+política de eliminación de carpetas
+Aplicado a: , roles anonauthenticated
+
+INSERTAR
+
+
+política de inserción de carpetas
+Aplicado a: , roles anonauthenticated
+
+SELECCIONAR
+
+
+política de selección de carpetas
+Aplicado a: , roles anonauthenticated
+
+TODO
+
+
+política de roles de servicio de carpetas
+Aplicado a: rol service_role
+
+ACTUALIZAR
+
+
+política de actualización de carpetas
+Aplicado a: , roles anonauthenticated
+
+documentos
+
+Desactivar RLS
+
+Crear política
+
+BORRAR
+
+
+política_de_eliminación_de_documentos
+Aplicado a: , roles anonauthenticated
+
+INSERTAR
+
+
+política de inserción de documentos
+Aplicado a: , roles anonauthenticated
+
+SELECCIONAR
+
+
+documentos_seleccionar_política
+Aplicado a: , roles anonauthenticated
+
+TODO
+
+
+documentos_service_role_policy
+Aplicado a: rol service_role
+
+ACTUALIZAR
+
+
+política_de_actualización_de_documentos
+Aplicado a: , roles anonauthenticated
+
+documentos
+
+Desactivar RLS
+
+Crear política
+
+BORRAR
+
+
+política_de_eliminación_de_documentos
+Aplicado a: rol public
+
+INSERTAR
+
+
+política de inserción de documentos
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+política de selección de documentos
+Aplicado a: rol public
+
+ACTUALIZAR
+
+
+política_de_actualización_de_documentos
+Aplicado a: rol public
+
+TODO
+
+
+política_de_funciones_de_servicio
+Aplicado a: rol public
+
+carpetas
+
+Desactivar RLS
+
+Crear política
+
+BORRAR
+
+
+política_de_eliminación_de_carpetas
+Aplicado a: rol public
+
+INSERTAR
+
+
+política_de_inserción_de_carpetas
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+política de selección de carpetas
+Aplicado a: rol public
+
+ACTUALIZAR
+
+
+política_de_actualización_de_carpetas
+Aplicado a: rol public
+
+TODO
+
+
+política_de_funciones_de_servicio
+Aplicado a: rol public
+
+informes_ejecucion
+
+Desactivar RLS
+
+Crear política
+
+BORRAR
+
+
+política de eliminación de informes
+Aplicado a: rol public
+
+INSERTAR
+
+
+informes_insertar_política
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+informes_seleccionar_política
+Aplicado a: rol public
+
+ACTUALIZAR
+
+
+política de actualización de informes
+Aplicado a: rol public
+
+TODO
+
+
+política_de_funciones_de_servicio
+Aplicado a: rol public
+
+lista_chequeo_categorias
+
+Desactivar RLS
+
+Crear política
+
+TODO
+
+
+Administradores acceso total
+Aplicado a: rol public
+
+TODO
+
+
+Permitir todas las operaciones en lista_chequeo_categorias
+Aplicado a: rol public
+
+BORRAR
+
+
+permitir_todos_eliminar
+Aplicado a: rol public
+
+INSERTAR
+
+
+permitir_todas_las_inserciones
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+permitir_todas_las_selecciones
+Aplicado a: rol public
+
+ACTUALIZAR
+
+
+permitir_todas_las_actualizaciones
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+Usuarios de todas las categorías
+Aplicado a: rol public
+
+lista_chequeo_etapas
+
+Desactivar RLS
+
+Crear política
+
+TODO
+
+
+Administradores acceso total
+Aplicado a: rol public
+
+TODO
+
+
+Permitir todas las operaciones en lista_chequeo_etapas
+Aplicado a: rol public
+
+BORRAR
+
+
+permitir_todos_eliminar
+Aplicado a: rol public
+
+INSERTAR
+
+
+permitir_todas_las_inserciones
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+permitir_todas_las_selecciones
+Aplicado a: rol public
+
+ACTUALIZAR
+
+
+permitir_todas_las_actualizaciones
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+Usuarios por etapas
+Aplicado a: rol public
+
+lista_chequeo_item_categorias
+
+Desactivar RLS
+
+Crear política
+
+BORRAR
+
+
+permitir_todos_eliminar
+Aplicado a: rol public
+
+INSERTAR
+
+
+permitir_todas_las_inserciones
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+permitir_todas_las_selecciones
+Aplicado a: rol public
+
+ACTUALIZAR
+
+
+permitir_todas_las_actualizaciones
+Aplicado a: rol public
+
+lista_chequeo_items_maestros
+
+Desactivar RLS
+
+Crear política
+
+TODO
+
+
+Administradores acceso total
+Aplicado a: rol public
+
+TODO
+
+
+Permitir todas las operaciones en lista_chequeo_items_maestros
+Aplicado a: rol public
+
+BORRAR
+
+
+permitir_todos_eliminar
+Aplicado a: rol public
+
+INSERTAR
+
+
+permitir_todas_las_inserciones
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+permitir_todas_las_selecciones
+Aplicado a: rol public
+
+ACTUALIZAR
+
+
+permitir_todas_las_actualizaciones
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+Usuarios ven items maestros
+Aplicado a: rol public
+
+lista_chequeo_registros
+
+Desactivar RLS
+
+Crear política
+
+TODO
+
+
+Permitir todas las operaciones en lista_chequeo_registros
+Aplicado a: rol public
+
+TODO
+
+
+Usuarios gestionan sus registros
+Aplicado a: rol public
+
+lista_chequeo_respuestas
+
+Desactivar RLS
+
+Crear política
+
+TODO
+
+
+Permitir todas las operaciones en lista_chequeo_respuestas
+Aplicado a: rol public
+
+BORRAR
+
+
+permitir_todos_eliminar
+Aplicado a: rol public
+
+INSERTAR
+
+
+permitir_todas_las_inserciones
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+permitir_todas_las_selecciones
+Aplicado a: rol public
+
+ACTUALIZAR
+
+
+permitir_todas_las_actualizaciones
+Aplicado a: rol public
+
+TODO
+
+
+Los usuarios gestionan sus respuestas
+Aplicado a: rol public
+
+lista_chequeo_seguimiento
+
+Desactivar RLS
+
+Crear política
+
+BORRAR
+
+
+Administradores pueden eliminar seguimiento
+Aplicado a: rol public
+
+ACTUALIZAR
+
+
+Todos pueden actualizar seguimiento
+Aplicado a: rol public
+
+INSERTAR
+
+
+Todos pueden insertarse en seguimiento
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+Todos pueden ver seguimiento
+Aplicado a: rol public
+
+pdm_programas
+
+Desactivar RLS
+
+Crear política
+
+BORRAR
+
+
+permitir_todos_eliminar
+Aplicado a: rol public
+
+INSERTAR
+
+
+permitir_todas_las_inserciones
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+permitir_todas_las_selecciones
+Aplicado a: rol public
+
+ACTUALIZAR
+
+
+permitir_todas_las_actualizaciones
+Aplicado a: rol public
+
+pdm_proyectos
+
+Desactivar RLS
+
+Crear política
+
+BORRAR
+
+
+permitir_todos_eliminar
+Aplicado a: rol public
+
+INSERTAR
+
+
+permitir_todas_las_inserciones
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+permitir_todas_las_selecciones
+Aplicado a: rol public
+
+ACTUALIZAR
+
+
+permitir_todas_las_actualizaciones
+Aplicado a: rol public
+
+pdm_subprogramas
+
+Desactivar RLS
+
+Crear política
+
+BORRAR
+
+
+permitir_todos_eliminar
+Aplicado a: rol public
+
+INSERTAR
+
+
+permitir_todas_las_inserciones
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+permitir_todas_las_selecciones
+Aplicado a: rol public
+
+ACTUALIZAR
+
+
+permitir_todas_las_actualizaciones
+Aplicado a: rol public
+
+plan_acción
+
+Desactivar RLS
+
+Crear política
+
+ACTUALIZAR
+
+
+Administradores pueden actualizar cualquier plan
+Aplicado a: rol public
+
+INSERTAR
+
+
+Administradores pueden crear planos en cualquier área.
+Aplicado a: rol public
+
+BORRAR
+
+
+Los administradores pueden eliminar cualquier plan.
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+Administradores pueden ver todos los aviones
+Aplicado a: rol public
+
+TODO
+
+
+plan_accion_todas_las_operaciones
+Aplicado a: rol public
+
+TODO
+
+
+plan_accion_permitir_todos
+Aplicado a: rol public
+
+BORRAR
+
+
+plan_accion_eliminar_política
+Aplicado a: rol authenticated
+
+INSERTAR
+
+
+plan_accion_política_de_inserción_demográfica
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+plan_accion_política_de_selección_demográfica
+Aplicado a: rol public
+
+ACTUALIZAR
+
+
+plan_accion_política_de_actualización_demográfica
+Aplicado a: rol public
+
+INSERTAR
+
+
+plan_accion_insertar_política
+Aplicado a: rol authenticated
+
+SELECCIONAR
+
+
+plan_accion_seleccionar_política
+Aplicado a: rol authenticated
+
+ACTUALIZAR
+
+
+plan_accion_actualizar_política
+Aplicado a: rol authenticated
+
+ACTUALIZAR
+
+
+Planeación puede actualizar cualquier plan
+Aplicado a: rol public
+
+INSERTAR
+
+
+Planeación puede crear planos en cualquier área.
+Aplicado a: rol public
+
+BORRAR
+
+
+Planeación puede eliminar cualquier plan.
+Aplicado a: rol public
+
+ACTUALIZAR
+
+
+Los usuarios pueden actualizar planos de su área.
+Aplicado a: rol public
+
+INSERTAR
+
+
+Los usuarios pueden crear planos en su área.
+Aplicado a: rol public
+
+BORRAR
+
+
+Los usuarios pueden eliminar planos de su área.
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+Los usuarios pueden ver planos de su área.
+Aplicado a: rol public
+
+plan_accion_adjuntos
+
+Desactivar RLS
+
+Crear política
+
+BORRAR
+
+
+plan_accion_adjuntos_delete_policy
+Aplicado a: , roles anonauthenticated
+
+INSERTAR
+
+
+plan_accion_adjuntos_insert_policy
+Aplicado a: , roles anonauthenticated
+
+SELECCIONAR
+
+
+plan_accion_adjuntos_select_policy
+Aplicado a: , roles anonauthenticated
+
+ACTUALIZAR
+
+
+plan_accion_adjuntos_update_policy
+Aplicado a: , roles anonauthenticated
+
+plan_validaciones
+
+Desactivar RLS
+
+Crear política
+
+INSERTAR
+
+
+plan_validaciones_insertar_politica
+Aplicado a: rol authenticated
+
+SELECCIONAR
+
+
+plan_validaciones_select_policy
+Aplicado a: rol authenticated
+
+ACTUALIZAR
+
+
+plan_validaciones_update_policy
+Aplicado a: rol authenticated
+
+perfiles
+
+Desactivar RLS
+
+Crear política
+
+ACTUALIZAR
+
+
+Los administradores pueden actualizar todos los perfiles
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+Los administradores pueden ver todos los perfiles
+Aplicado a: rol public
+
+ACTUALIZAR
+
+
+Los usuarios pueden actualizar su propio perfil
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+Los usuarios pueden ver su propio perfil
+Aplicado a: rol public
+
+registros_fotográficos
+
+Desactivar RLS
+
+Crear política
+
+BORRAR
+
+
+política_de_eliminación_de_registros
+Aplicado a: rol public
+
+INSERTAR
+
+
+registros_insertar_política
+Aplicado a: rol public
+
+SELECCIONAR
+
+
+registros_seleccionar_política
+Aplicado a: rol public
+
+ACTUALIZAR
+
+
+política de actualización de registros
+Aplicado a: rol public
+
+TODO
+
+
+política_de_funciones_de_servicio
+Aplicado a: rol public
+
+usuarios
+
+Desactivar RLS
+
+Crear política
+
+SELECCIONAR
+
+
+Habilitar acceso de lectura para todos los usuarios
+Aplicado a: rol public
+
+INSERTAR
+
+
+usuarios_insertar_política
+Aplicado a: rol authenticated
+
+SELECCIONAR
+
+
+usuarios_seleccionar_política
+Aplicado a: rol authenticated
+
+ACTUALIZAR
+
+
+política_de_actualización_de_usuarios
+Aplicado a: rol authenticated

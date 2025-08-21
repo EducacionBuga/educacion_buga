@@ -29,6 +29,45 @@ export interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+// Función para mapear roles de BD a roles del sistema
+const mapDatabaseRoleToSystemRole = (dbRole: string, email: string): string => {
+  // Usar directamente el rol de la base de datos si ya está en formato correcto
+  const upperRole = dbRole?.toUpperCase()
+  
+  // Mapeo directo de roles de BD
+  const roleMapping: Record<string, string> = {
+    'ADMIN': 'ADMIN',
+    'ADMINISTRATOR': 'ADMIN',
+    'INSPECCION_VIGILANCIA': 'INSPECCION_VIGILANCIA',
+    'COBERTURA_INFRAESTRUCTURA': 'COBERTURA_INFRAESTRUCTURA', 
+    'TALENTO_HUMANO': 'TALENTO_HUMANO',
+    'CALIDAD_EDUCATIVA': 'CALIDAD_EDUCATIVA',
+    'DESPACHO': 'DESPACHO',
+    'PLANEACION': 'PLANEACION',
+    'USER': 'USER'
+  }
+  
+  // Si el rol existe en el mapeo, usarlo directamente
+  if (roleMapping[upperRole]) {
+    return roleMapping[upperRole]
+  }
+  
+  // Mapeo para roles en minúsculas de la BD
+  if (dbRole === 'admin' || dbRole === 'administrator') {
+    return 'ADMIN'
+  }
+  
+  // Para user genérico, determinar por email según dependencia
+  if (dbRole === 'user') {
+    if (email?.includes('talentohumano')) return 'TALENTO_HUMANO'
+    if (email?.includes('cobertura')) return 'COBERTURA_INFRAESTRUCTURA'
+    if (email?.includes('inspeccion')) return 'INSPECCION_VIGILANCIA'
+    if (email?.includes('calidad')) return 'CALIDAD_EDUCATIVA'
+  }
+  
+  return 'USER'
+}
+
 // Función para normalizar roles
 const normalizeRole = (role: string | undefined | null): string => {
   if (!role) return 'ADMIN'
@@ -66,20 +105,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     setLoading(true)
     
+    // Limpiar datos anteriores para forzar nueva consulta
+    localStorage.removeItem('supabase_session')
+    localStorage.removeItem('user_data')
+    setUser(null)
+    setSession(null)
+    
     try {
       console.log('🔑 Intentando login con:', email)
+      console.log('🧹 localStorage limpiado para nueva consulta')
       
-      // Crear una promesa con timeout de 10 segundos
-      const loginPromise = supabase.auth.signInWithPassword({
-        email,
-        password
-      })
+      // Intentar login con reintentos automáticos
+      let attempts = 0
+      const maxAttempts = 2
+      let data: any, error: any
+      
+      while (attempts < maxAttempts) {
+        attempts++
+        console.log(`🔄 Intento ${attempts}/${maxAttempts} de login`)
+        
+        try {
+          // Crear una promesa con timeout de 30 segundos (más tiempo para servidor lento)
+          const loginPromise = supabase.auth.signInWithPassword({
+            email,
+            password
+          })
 
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Login timeout - servidor demorado')), 10000)
-      )
-
-      const { data, error } = await Promise.race([loginPromise, timeoutPromise]) as any
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Login timeout - servidor demorado')), 30000)
+          )
+          
+          console.log('⏱️ Timeout configurado a 30 segundos para servidor lento')
+          
+          const result = await Promise.race([loginPromise, timeoutPromise]) as any
+           data = result.data
+           error = result.error
+           
+           // Si llegamos aquí, el intento fue exitoso o tuvo un error específico
+           if (error) {
+             console.error('❌ Error en login:', error.message)
+             return { success: false, error: error.message }
+           }
+           
+           // Login exitoso, procesar datos
+           if (data && data.user && data.session) {
+             console.log('✅ Login exitoso en intento', attempts)
+             break // Salir del bucle de reintentos
+           }
+           
+           // Si no hay datos válidos, continuar con el siguiente intento
+           if (attempts < maxAttempts) {
+             console.log('⚠️ No se obtuvieron datos válidos, reintentando...')
+             continue
+           }
+          
+        } catch (attemptError: any) {
+          console.warn(`⚠️ Intento ${attempts} falló:`, attemptError.message)
+          
+          // Si es el último intento o no es un error de timeout, lanzar el error
+          if (attempts >= maxAttempts || !attemptError.message.includes('timeout')) {
+            throw attemptError
+          }
+          
+          // Esperar un poco antes del siguiente intento
+          if (attempts < maxAttempts) {
+            console.log('⏳ Esperando 2 segundos antes del siguiente intento...')
+            await new Promise(resolve => setTimeout(resolve, 2000))
+          }
+        }
+      }
 
       if (error) {
         console.error('❌ Error en login:', error.message)
@@ -89,13 +183,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.user && data.session) {
         console.log('✅ Login exitoso')
         
-        // Crear usuario básico sin consulta adicional a BD
+        // Usar función de BD para obtener datos del usuario (lógica centralizada)
+        console.log('🔍 Consultando usuario con función BD get_user_role:', {
+          userId: data.user.id,
+          email: data.user.email
+        })
+        
+        const { data: userProfile, error: profileError } = await supabase
+          .rpc('get_user_role', { user_id: data.user.id })
+          .single()
+        
+        console.log('📋 Resultado consulta profiles:', {
+          userProfile,
+          profileError: profileError?.message,
+          hasProfile: !!userProfile
+        })
+        
+        let userRole = 'USER'
+        let userName = data.user.email!.split('@')[0]
+        
+        if (userProfile && !profileError) {
+          // Usar directamente los datos de la función BD (ya normalizados)
+          userRole = userProfile.role || 'USER'  // La función BD ya maneja la lógica
+          userName = userProfile.full_name || userName
+          
+          console.log('✅ Usuario desde función BD get_user_role:', {
+            email: data.user.email,
+            role: userRole,
+            is_admin: userProfile.is_admin,
+            full_name: userProfile.full_name,
+            source: 'BD_FUNCTION'
+          })
+        } else {
+          // Fallback a user_metadata si no existe en tabla usuarios
+          userRole = data.user.user_metadata?.role || data.user.app_metadata?.role || 'USER'
+          userName = data.user.user_metadata?.full_name || userName
+          userArea = data.user.user_metadata?.area
+          userDependencia = data.user.user_metadata?.area
+          
+          console.log('❌ Usuario NO encontrado en profiles:', {
+            email: data.user.email,
+            userId: data.user.id,
+            error: profileError?.message,
+            fallbackRole: userRole,
+            userMetadata: data.user.user_metadata
+          })
+        }
+        
+        const normalizedRole = normalizeRole(userRole)
+        
+        // Crear usuario con rol correcto (desde función BD)
         const userData: AuthUser = {
           id: data.user.id,
           email: data.user.email!,
-          name: data.user.email!.split('@')[0],
-          role: 'ADMIN' // Role por defecto
+          name: userName,
+          role: normalizedRole
         }
+        
+        console.log('👤 Usuario logueado con función BD:', {
+          email: userData.email,
+          role: userData.role,
+          normalizedRole: normalizedRole,
+          originalRole: userRole,
+          fromBDFunction: !!userProfile,
+          profileError: profileError?.message
+        })
         
         setUser(userData)
         setSession(data.session)
@@ -110,9 +262,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: 'No se pudo iniciar sesión' }
     } catch (error: any) {
       console.error('❌ Error inesperado en login:', error)
-      const errorMessage = error.message === 'Login timeout - servidor demorado' 
-        ? 'El servidor está tardando demasiado. Intenta de nuevo.'
-        : 'Error inesperado al iniciar sesión'
+      
+      let errorMessage = 'Error inesperado al iniciar sesión'
+      
+      if (error.message === 'Login timeout - servidor demorado') {
+        errorMessage = '⏱️ El servidor está tardando más de lo normal. Verifica tu conexión e intenta nuevamente.'
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        errorMessage = '🌐 Problema de conexión. Verifica tu internet e intenta nuevamente.'
+      } else if (error.message?.includes('Invalid login credentials')) {
+        errorMessage = '🔐 Email o contraseña incorrectos. Verifica tus credenciales.'
+      } else if (error.message?.includes('Email not confirmed')) {
+        errorMessage = '📧 Debes confirmar tu email antes de iniciar sesión.'
+      } else if (error.message?.includes('Too many requests')) {
+        errorMessage = '⚠️ Demasiados intentos. Espera unos minutos antes de intentar nuevamente.'
+      }
+      
+      console.log('📝 Mensaje de error para usuario:', errorMessage)
       return { success: false, error: errorMessage }
     } finally {
       setLoading(false)
@@ -201,13 +366,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('📱 Sesión encontrada en Supabase')
           setSession(currentSession)
           
-          // Crear usuario básico sin consulta adicional
+          // Consultar datos del usuario desde la tabla profiles
+          const { data: userProfile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', currentSession.user.id)
+            .single()
+          
+          let userRole = 'USER'
+          let userName = currentSession.user.email!.split('@')[0]
+          let userArea = null
+          let userDependencia = null
+          
+          if (userProfile && !profileError) {
+              // Mapear rol de BD a rol del sistema
+              const dbRole = userProfile.role || 'user'
+              userRole = mapDatabaseRoleToSystemRole(dbRole, currentSession.user.email!)
+              userName = userProfile.full_name || userName
+              userArea = userProfile.area || null
+              userDependencia = userProfile.dependencia || null
+            } else {
+            // Fallback a user_metadata si no existe en tabla usuarios
+            userRole = currentSession.user.user_metadata?.role || currentSession.user.app_metadata?.role || 'USER'
+            userName = currentSession.user.user_metadata?.full_name || userName
+            userArea = currentSession.user.user_metadata?.area
+            userDependencia = currentSession.user.user_metadata?.area
+          }
+          
+          const normalizedRole = normalizeRole(userRole)
+          
+          // Crear usuario con rol correcto
           const userData: AuthUser = {
             id: currentSession.user.id,
             email: currentSession.user.email!,
-            name: currentSession.user.email!.split('@')[0],
-            role: 'ADMIN'
+            name: userName,
+            role: normalizedRole,
+            area_id: userArea,
+            dependencia: userDependencia
           }
+          
+          console.log('🔄 Sesión restaurada:', {
+            email: userData.email,
+            role: userData.role,
+            area: userData.area_id,
+            fromDatabase: !!userProfile
+          })
           
           setUser(userData)
           localStorage.setItem('supabase_session', JSON.stringify(currentSession))
@@ -231,12 +434,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('🔄 Auth state change:', event)
 
       if (event === 'SIGNED_IN' && session) {
+        // Consultar datos del usuario desde la tabla profiles
+         const { data: userProfile, error: profileError } = await supabase
+           .from('profiles')
+           .select('*')
+           .eq('id', session.user.id)
+           .single()
+        
+        let userRole = 'USER'
+        let userName = session.user.email!.split('@')[0]
+        let userArea = null
+        let userDependencia = null
+        
+        if (userProfile && !profileError) {
+             // Mapear rol de BD a rol del sistema
+             const dbRole = userProfile.role || 'user'
+             userRole = mapDatabaseRoleToSystemRole(dbRole, session.user.email!)
+             userName = userProfile.full_name || userName
+             userArea = userProfile.area || null
+             userDependencia = userProfile.dependencia || null
+           } else {
+           // Fallback a user_metadata si no existe en tabla usuarios
+           userRole = session.user.user_metadata?.role || session.user.app_metadata?.role || 'USER'
+           userName = session.user.user_metadata?.full_name || userName
+           userArea = session.user.user_metadata?.area
+           userDependencia = session.user.user_metadata?.area
+         }
+        
+        const normalizedRole = normalizeRole(userRole)
+        
         const userData: AuthUser = {
           id: session.user.id,
           email: session.user.email!,
-          name: session.user.email!.split('@')[0],
-          role: 'ADMIN'
+          name: userName,
+          role: normalizedRole,
+          area_id: userArea,
+          dependencia: userDependencia
         }
+        
+        console.log('🔄 Estado de auth cambiado:', {
+          event,
+          email: userData.email,
+          role: userData.role,
+          area: userData.area_id,
+          fromDatabase: !!userProfile
+        })
+        
         setUser(userData)
         setSession(session)
         localStorage.setItem('supabase_session', JSON.stringify(session))

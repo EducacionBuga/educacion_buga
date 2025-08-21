@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import * as XLSX from 'xlsx'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -42,6 +43,10 @@ interface MatrizMejoradaProps {
   setAreaFilter: (value: string) => void
   estadoFilter: string
   setEstadoFilter: (value: string) => void
+  fechaDesdeFilter: string
+  setFechaDesdeFilter: (value: string) => void
+  fechaHastaFilter: string
+  setFechaHastaFilter: (value: string) => void
   handleClearFilters: () => void
 }
 
@@ -58,6 +63,10 @@ export function MatrizMejorada({
   setAreaFilter,
   estadoFilter,
   setEstadoFilter,
+  fechaDesdeFilter,
+  setFechaDesdeFilter,
+  fechaHastaFilter,
+  setFechaHastaFilter,
   handleClearFilters,
 }: MatrizMejoradaProps) {
   console.log("🔍 MatrizMejorada - Datos recibidos:", { 
@@ -146,6 +155,85 @@ export function MatrizMejorada({
       avancePromedio
     }
   }, [data, isLoading])
+
+  // Función para exportar a Excel
+  const handleExportExcel = () => {
+    if (!data || data.length === 0) {
+      alert('No hay datos para exportar')
+      return
+    }
+
+    // Preparar los datos para Excel
+    const excelData = data.map((item, index) => ({
+      'N°': index + 1,
+      'Área': item.area || '',
+      'Programa': item.programa || '',
+      'Objetivo': item.objetivo || '',
+      'Meta': item.meta || '',
+      'Presupuesto': item.presupuesto || '',
+      'Fecha Inicio': item.fechaInicio || '',
+      'Fecha Fin': item.fechaFin || '',
+      'Responsable': item.responsable || '',
+      'Estado': item.estado || '',
+      'Avance': item.avance ? `${item.avance}%` : '0%',
+      'Acciones': item.acciones || '',
+      'Indicadores': item.indicadores || '',
+      'Meta Decenal': item.metaDecenal || '',
+      'Macroobjetivo Decenal': item.macroobjetivoDecenal || '',
+      'Objetivo Decenal': item.objetivoDecenal || '',
+      'Programa PDM': item.programaPDM || '',
+      'Subprograma PDM': item.subprogramaPDM || '',
+      'Proyecto PDM': item.proyectoPDM || '',
+      'Zona': item.zona || '',
+      'Grupo Étnico': item.grupoEtnico || '',
+      'Grupo Etáreo': item.grupoEtareo || '',
+      'Grupo Población': item.grupoPoblacion || '',
+      'Cantidad': item.cantidad || ''
+    }))
+
+    // Crear el libro de trabajo
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(excelData)
+
+    // Configurar el ancho de las columnas
+    const colWidths = [
+      { wch: 5 },   // N°
+      { wch: 20 },  // Área
+      { wch: 30 },  // Programa
+      { wch: 40 },  // Objetivo
+      { wch: 40 },  // Meta
+      { wch: 15 },  // Presupuesto
+      { wch: 12 },  // Fecha Inicio
+      { wch: 12 },  // Fecha Fin
+      { wch: 20 },  // Responsable
+      { wch: 15 },  // Estado
+      { wch: 12 },  // Avance
+      { wch: 40 },  // Acciones
+      { wch: 40 },  // Indicadores
+      { wch: 25 },  // Meta Decenal
+      { wch: 30 },  // Macroobjetivo
+      { wch: 30 },  // Objetivo Decenal
+      { wch: 25 },  // Programa PDM
+      { wch: 25 },  // Subprograma PDM
+      { wch: 25 },  // Proyecto PDM
+      { wch: 15 },  // Zona
+      { wch: 15 },  // Grupo Étnico
+      { wch: 15 },  // Grupo Etáreo
+      { wch: 15 },  // Grupo Población
+      { wch: 12 }   // Cantidad
+    ]
+    ws['!cols'] = colWidths
+
+    // Agregar la hoja al libro
+    XLSX.utils.book_append_sheet(wb, ws, 'Matriz de Seguimiento')
+
+    // Generar el nombre del archivo con fecha actual
+    const fecha = new Date().toLocaleDateString('es-ES').replace(/\//g, '-')
+    const nombreArchivo = `Matriz_Seguimiento_${fecha}.xlsx`
+
+    // Descargar el archivo
+    XLSX.writeFile(wb, nombreArchivo)
+  }
 
   // Formatear presupuesto
   const formatCurrency = (amount: number) => {
@@ -518,49 +606,149 @@ export function MatrizMejorada({
         </Card>
       </div>
 
-      {/* Filtros de búsqueda */}
-      <Card>
+      {/* Filtros de búsqueda mejorados */}
+      <Card className="shadow-lg border border-gray-200 bg-white">
         <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Buscar por programa, objetivo, responsable..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+          <div className="space-y-4">
+            {/* Barra de búsqueda principal */}
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <Input
+                placeholder="🔍 Buscar por programa, objetivo, responsable..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-12 h-12 text-base border-2 border-blue-200 focus:border-blue-400 rounded-xl shadow-sm"
+              />
+            </div>
+            
+            {/* Filtros organizados en grid responsive */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+              {/* Filtro de área */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                  <Users className="h-4 w-4 text-blue-500" />
+                  Área
+                </label>
+                <select
+                  value={areaFilter}
+                  onChange={(e) => setAreaFilter(e.target.value)}
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+                >
+                  <option value="todas">📋 Todas las áreas</option>
+                  <option value="Calidad Educativa">🎓 Calidad Educativa</option>
+                  <option value="Inspección y Vigilancia">👁️ Inspección y Vigilancia</option>
+                  <option value="Cobertura e Infraestructura">🏗️ Cobertura e Infraestructura</option>
+                  <option value="Talento Humano">👥 Talento Humano</option>
+                </select>
+              </div>
+              
+              {/* Filtro de estado */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  Estado
+                </label>
+                <select
+                  value={estadoFilter}
+                  onChange={(e) => setEstadoFilter(e.target.value)}
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+                >
+                  <option value="todos">📊 Todos los estados</option>
+                  <option value="Pendiente">⏳ Pendiente</option>
+                  <option value="En Progreso">🔵 En Progreso</option>
+                  <option value="Completado">✅ Completado</option>
+                  <option value="Retrasado">⚠️ Retrasado</option>
+                </select>
+              </div>
+              
+              {/* Filtro fecha desde */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                  <Calendar className="h-4 w-4 text-purple-500" />
+                  Desde
+                </label>
+                <input
+                  type="date"
+                  value={fechaDesdeFilter}
+                  onChange={(e) => setFechaDesdeFilter(e.target.value)}
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
                 />
               </div>
+              
+              {/* Filtro fecha hasta */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                  <Calendar className="h-4 w-4 text-purple-500" />
+                  Hasta
+                </label>
+                <input
+                  type="date"
+                  value={fechaHastaFilter}
+                  onChange={(e) => setFechaHastaFilter(e.target.value)}
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+                />
+              </div>
+              
+              {/* Botones de acción */}
+              <div className="space-y-2 sm:col-span-2 lg:col-span-2">
+                <label className="text-sm font-medium text-transparent">Acciones</label>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={handleExportExcel}
+                    className="flex-1 h-10 border-2 border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300 transition-all rounded-lg"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Exportar Excel
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleClearFilters}
+                    className="flex-1 h-10 border-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-all rounded-lg"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Limpiar Filtros
+                  </Button>
+                </div>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <select
-                value={areaFilter}
-                onChange={(e) => setAreaFilter(e.target.value)}
-                className="px-3 py-2 border rounded-md"
-              >
-                <option value="todas">Todas las áreas</option>
-                <option value="Calidad Educativa">Calidad Educativa</option>
-                <option value="Inspección y Vigilancia">Inspección y Vigilancia</option>
-                <option value="Cobertura e Infraestructura">Cobertura e Infraestructura</option>
-                <option value="Talento Humano">Talento Humano</option>
-              </select>
-              <select
-                value={estadoFilter}
-                onChange={(e) => setEstadoFilter(e.target.value)}
-                className="px-3 py-2 border rounded-md"
-              >
-                <option value="todos">Todos los estados</option>
-                <option value="Pendiente">Pendiente</option>
-                <option value="En Progreso">En Progreso</option>
-                <option value="Completado">Completado</option>
-                <option value="Retrasado">Retrasado</option>
-              </select>
-              <Button variant="outline" onClick={handleClearFilters}>
-                <X className="h-4 w-4 mr-2" />
-                Limpiar
-              </Button>
-            </div>
+            
+            {/* Indicadores de filtros activos */}
+             {(searchTerm || areaFilter !== "todas" || estadoFilter !== "todos" || fechaDesdeFilter || fechaHastaFilter) && (
+               <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200">
+                <span className="text-sm font-medium text-gray-600">Filtros activos:</span>
+                {searchTerm && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                    <Search className="h-3 w-3" />
+                    "{searchTerm}"
+                  </span>
+                )}
+                {areaFilter !== "todas" && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+                    <Users className="h-3 w-3" />
+                    {areaFilter}
+                  </span>
+                )}
+                {estadoFilter !== "todos" && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
+                    <CheckCircle2 className="h-3 w-3" />
+                    {estadoFilter}
+                  </span>
+                )}
+                {fechaDesdeFilter && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
+                    <Calendar className="h-3 w-3" />
+                    Desde: {new Date(fechaDesdeFilter).toLocaleDateString('es-ES')}
+                  </span>
+                )}
+                {fechaHastaFilter && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
+                    <Calendar className="h-3 w-3" />
+                    Hasta: {new Date(fechaHastaFilter).toLocaleDateString('es-ES')}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

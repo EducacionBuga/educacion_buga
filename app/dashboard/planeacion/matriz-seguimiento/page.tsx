@@ -29,6 +29,8 @@ export default function MatrizSeguimientoPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [areaFilter, setAreaFilter] = useState("todas")
   const [estadoFilter, setEstadoFilter] = useState("todos")
+  const [fechaDesdeFilter, setFechaDesdeFilter] = useState("")
+  const [fechaHastaFilter, setFechaHastaFilter] = useState("")
 
   const { data: matrizData, isLoading, isError, error, refetch, updatePlanEstado } = useMatrizSeguimiento()
 
@@ -37,12 +39,16 @@ export default function MatrizSeguimientoPage() {
     searchTerm,
     areaFilter,
     estadoFilter,
+    fechaDesdeFilter,
+    fechaHastaFilter,
   })
 
   const handleClearFilters = useCallback(() => {
     setSearchTerm("")
     setAreaFilter("todas")
     setEstadoFilter("todos")
+    setFechaDesdeFilter("")
+    setFechaHastaFilter("")
   }, [])
 
   return (
@@ -82,6 +88,10 @@ export default function MatrizSeguimientoPage() {
                   setAreaFilter={setAreaFilter}
                   estadoFilter={estadoFilter}
                   setEstadoFilter={setEstadoFilter}
+                  fechaDesdeFilter={fechaDesdeFilter}
+                  setFechaDesdeFilter={setFechaDesdeFilter}
+                  fechaHastaFilter={fechaHastaFilter}
+                  setFechaHastaFilter={setFechaHastaFilter}
                   handleClearFilters={handleClearFilters}
                 />
               </TabsContent>

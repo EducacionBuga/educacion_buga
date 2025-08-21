@@ -39,6 +39,7 @@ import { PlanAccionSummary } from "@/components/plan-accion/plan-accion-summary"
 import { PlanAccionAddDialog } from "@/components/plan-accion/plan-accion-add-dialog"
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import Papa from "papaparse"
+import * as XLSX from 'xlsx'
 
 /**
  * Props para el componente PlanAccionAreaMejorado
@@ -256,39 +257,64 @@ export default function PlanAccionAreaMejorado({
     setEstadoFilter("todos")
   }
 
-  // Exportar a CSV
-  const handleExportCSV = useCallback(() => {
-    const csvData = planAccionItems.map(item => ({
-      Programa: item.programa,
-      Objetivo: item.objetivo,
-      Meta: item.meta,
-      Presupuesto: item.presupuesto,
-      Acciones: item.acciones,
-      Indicadores: item.indicadores,
-      PorcentajeAvance: item.porcentajeAvance,
-      FechaInicio: item.fechaInicio,
-      FechaFin: item.fechaFin,
-      Responsable: item.responsable,
-      Estado: item.estado,
-      PlanDecenal: item.metaDecenal,
-      MacroobjetivoDecenal: item.macroobjetivoDecenal,
-      ObjetivoDecenal: item.objetivoDecenal,
-      ProgramaPDM: item.programaPDM,
-      SubprogramaPDM: item.subprogramaPDM,
-      ProyectoPDM: item.proyectoPDM,
+  // Exportar a Excel
+  const handleExportExcel = useCallback(() => {
+    // Preparar los datos para Excel con columnas separadas
+    const excelData = planAccionItems.map((item, index) => ({
+      "N°": index + 1,
+      "Programa": item.programa || '',
+      "Objetivo": item.objetivo || '',
+      "Meta": item.meta || '',
+      "Presupuesto": item.presupuesto || 0,
+      "Acciones": item.acciones || '',
+      "Indicadores": item.indicadores || '',
+      "Porcentaje de Avance": `${item.porcentajeAvance || 0}%`,
+      "Fecha de Inicio": item.fechaInicio || '',
+      "Fecha de Fin": item.fechaFin || '',
+      "Responsable": item.responsable || '',
+      "Estado": item.estado || '',
+      "Plan Decenal": item.metaDecenal || '',
+      "Macroobjetivo Decenal": item.macroobjetivoDecenal || '',
+      "Objetivo Decenal": item.objetivoDecenal || '',
+      "Programa PDM": item.programaPDM || '',
+      "Subprograma PDM": item.subprogramaPDM || '',
+      "Proyecto PDM": item.proyectoPDM || ''
     }))
 
-    const csv = Papa.unparse(csvData)
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.setAttribute("href", url)
-    link.setAttribute("download", `plan-accion-${area}-${new Date().toISOString().split("T")[0]}.csv`)
-    link.style.visibility = "hidden"
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    // Crear el libro de trabajo de Excel
+    const worksheet = XLSX.utils.json_to_sheet(excelData)
+    const workbook = XLSX.utils.book_new()
+    
+    // Configurar el ancho de las columnas
+    const columnWidths = [
+      { wch: 5 },   // N°
+      { wch: 30 },  // Programa
+      { wch: 40 },  // Objetivo
+      { wch: 30 },  // Meta
+      { wch: 15 },  // Presupuesto
+      { wch: 30 },  // Acciones
+      { wch: 25 },  // Indicadores
+      { wch: 15 },  // Porcentaje de Avance
+      { wch: 15 },  // Fecha de Inicio
+      { wch: 15 },  // Fecha de Fin
+      { wch: 20 },  // Responsable
+      { wch: 15 },  // Estado
+      { wch: 25 },  // Plan Decenal
+      { wch: 30 },  // Macroobjetivo Decenal
+      { wch: 25 },  // Objetivo Decenal
+      { wch: 20 },  // Programa PDM
+      { wch: 20 },  // Subprograma PDM
+      { wch: 20 }   // Proyecto PDM
+    ]
+    
+    worksheet['!cols'] = columnWidths
+    
+    // Agregar la hoja al libro
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Plan de Acción')
+    
+    // Generar el archivo y descargarlo
+    const fileName = `plan-accion-${area}-${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(workbook, fileName)
   }, [planAccionItems, area])
 
   // Formatear presupuesto
@@ -816,7 +842,7 @@ export default function PlanAccionAreaMejorado({
                     </Button>
                     <Button
                       variant="outline"
-                      onClick={handleExportCSV}
+                      onClick={handleExportExcel}
                       className="flex items-center gap-2 h-11"
                     >
                       <Download className="h-4 w-4" />
