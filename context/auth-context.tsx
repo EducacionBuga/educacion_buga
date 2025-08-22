@@ -327,9 +327,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })
 
+    // Escuchar cuando la página se vuelve visible (cambio de pestaña)
+    const handleVisibilityChange = () => {
+      if (!document.hidden && mounted) {
+        console.log('👁️ Página visible - verificando sesión...')
+        // Verificar sesión cuando la página se vuelve visible
+        const savedSession = localStorage.getItem('supabase_session')
+        const savedUser = localStorage.getItem('user_data')
+        
+        if (savedSession && savedUser && (!user || !session)) {
+          try {
+            const parsedSession = JSON.parse(savedSession)
+            const parsedUser = JSON.parse(savedUser)
+            
+            // Verificar si no ha expirado
+            const now = new Date()
+            const expiresAt = new Date(parsedSession.expires_at * 1000)
+            
+            if (expiresAt > now) {
+              console.log('✅ Restaurando sesión desde localStorage')
+              setSession(parsedSession)
+              setUser(parsedUser)
+            } else {
+              console.log('⚠️ Sesión expirada, limpiando')
+              clearSession()
+            }
+          } catch (error) {
+            console.error('❌ Error restaurando sesión:', error)
+            clearSession()
+          }
+        }
+      }
+    }
+
+    // Agregar listeners para visibilidad y focus
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleVisibilityChange)
+
     return () => {
       mounted = false
       subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleVisibilityChange)
     }
   }, [supabase, clearSession])
 
