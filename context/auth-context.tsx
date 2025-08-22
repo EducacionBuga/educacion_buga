@@ -39,6 +39,11 @@ const normalizeRole = (role: string | undefined | null): string => {
     case 'ADMIN':
     case 'ADMINISTRADOR':
       return 'ADMIN'
+    case 'TALENTO_HUMANO':
+    case 'TALENTO HUMANO':
+    case 'RECURSOS_HUMANOS':
+    case 'RECURSOS HUMANOS':
+      return 'TALENTO_HUMANO'
     case 'CALIDAD_EDUCATIVA':
     case 'CALIDAD':
       return 'CALIDAD_EDUCATIVA'
