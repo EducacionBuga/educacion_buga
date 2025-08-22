@@ -4,6 +4,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/context"
 import { Toaster } from "@/components/ui/toaster"
+import ErrorBoundary, { ProductionErrorFallback } from "@/components/error-boundary"
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -25,17 +26,19 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body className={`${poppins.variable} font-poppins`}>
-        <ThemeProvider 
-          attribute="class" 
-          defaultTheme="light" 
-          enableSystem 
-          disableTransitionOnChange
-        >
-          <AuthProvider>
-            {children}
-            <Toaster />
-          </AuthProvider>
-        </ThemeProvider>
+        <ErrorBoundary fallback={ProductionErrorFallback}>
+          <ThemeProvider 
+            attribute="class" 
+            defaultTheme="light" 
+            enableSystem 
+            disableTransitionOnChange
+          >
+            <AuthProvider>
+              {children}
+              <Toaster />
+            </AuthProvider>
+          </ThemeProvider>
+        </ErrorBoundary>
       </body>
     </html>
   )

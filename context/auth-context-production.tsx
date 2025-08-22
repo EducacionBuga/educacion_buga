@@ -231,6 +231,14 @@ export function AuthProviderProduction({ children }: { children: React.ReactNode
   // Efecto para inicializar la autenticación
   useEffect(() => {
     let mounted = true
+    
+    // Timeout de seguridad para asegurar que loading termine
+    const safetyTimeout = setTimeout(() => {
+      if (mounted) {
+        console.warn('⚠️ [PROD] Timeout de seguridad activado, terminando loading')
+        setLoading(false)
+      }
+    }, 15000) // 15 segundos máximo
 
     const initializeAuth = async () => {
       try {
@@ -263,7 +271,9 @@ export function AuthProviderProduction({ children }: { children: React.ReactNode
               console.log('✅ [PROD] Sesión válida encontrada en localStorage')
               setSession(parsedSession)
               setUser(parsedUser)
-              setLoading(false)
+              if (mounted) {
+                setLoading(false)
+              }
               return
             } else {
               console.log('⚠️ [PROD] Sesión expirada, limpiando...')
@@ -317,6 +327,8 @@ export function AuthProviderProduction({ children }: { children: React.ReactNode
         if (mounted) {
           setLoading(false)
         }
+        // Limpiar timeout de seguridad
+        clearTimeout(safetyTimeout)
       }
     }
 
@@ -351,6 +363,7 @@ export function AuthProviderProduction({ children }: { children: React.ReactNode
     return () => {
       mounted = false
       subscription.unsubscribe()
+      clearTimeout(safetyTimeout)
     }
   }, [supabase, clearSession])
 
