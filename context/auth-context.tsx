@@ -328,34 +328,87 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     // Escuchar cuando la página se vuelve visible (cambio de pestaña)
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = async () => {
       if (!document.hidden && mounted) {
-        console.log('👁️ Página visible - verificando sesión...')
-        // Verificar sesión cuando la página se vuelve visible
-        const savedSession = localStorage.getItem('supabase_session')
-        const savedUser = localStorage.getItem('user_data')
+        console.log('👁️ Página visible - verificando sesión y rol...')
         
-        if (savedSession && savedUser && (!user || !session)) {
-          try {
-            const parsedSession = JSON.parse(savedSession)
-            const parsedUser = JSON.parse(savedUser)
+        // Verificar sesión en Supabase primero
+        try {
+          const { data: { session: currentSession } } = await supabase.auth.getSession()
+          
+          if (currentSession && (!user || !session)) {
+            console.log('🔄 Sesión encontrada, consultando rol actualizado...')
             
-            // Verificar si no ha expirado
-            const now = new Date()
-            const expiresAt = new Date(parsedSession.expires_at * 1000)
-            
-            if (expiresAt > now) {
-              console.log('✅ Restaurando sesión desde localStorage')
-              setSession(parsedSession)
-              setUser(parsedUser)
-            } else {
-              console.log('⚠️ Sesión expirada, limpiando')
-              clearSession()
+            // Consultar rol actualizado con RPC
+            try {
+              const { data: userProfile, error: profileError } = await supabase
+                .rpc('get_user_role', { user_id: currentSession.user.id })
+                .single()
+              
+              let userData: AuthUser
+              
+              if (userProfile && !profileError) {
+                console.log('✅ Rol actualizado obtenido de tabla profiles:', userProfile)
+                userData = {
+                  id: currentSession.user.id,
+                  email: userProfile.email || currentSession.user.email!,
+                  name: userProfile.full_name || currentSession.user.email!.split('@')[0],
+                  role: normalizeRole(userProfile.role || 'USER'),
+                  area_id: userProfile.area_id,
+                  dependencia: userProfile.dependencia
+                }
+              } else {
+                console.warn('⚠️ RPC falló en visibilidad, usando user_metadata:', profileError?.message)
+                userData = {
+                  id: currentSession.user.id,
+                  email: currentSession.user.email!,
+                  name: currentSession.user.user_metadata?.full_name || currentSession.user.email!.split('@')[0],
+                  role: normalizeRole(currentSession.user.user_metadata?.role || 'USER'),
+                  area_id: currentSession.user.user_metadata?.area,
+                  dependencia: currentSession.user.user_metadata?.dependencia
+                }
+              }
+              
+              console.log('✅ Restaurando sesión con rol:', userData.role)
+              setSession(currentSession)
+              setUser(userData)
+              localStorage.setItem('supabase_session', JSON.stringify(currentSession))
+              localStorage.setItem('user_data', JSON.stringify(userData))
+              
+            } catch (rpcError: any) {
+              console.warn('⚠️ Error en RPC durante visibilidad:', rpcError.message)
+              // Fallback a localStorage si RPC falla
+              const savedSession = localStorage.getItem('supabase_session')
+              const savedUser = localStorage.getItem('user_data')
+              
+              if (savedSession && savedUser) {
+                try {
+                  const parsedSession = JSON.parse(savedSession)
+                  const parsedUser = JSON.parse(savedUser)
+                  
+                  const now = new Date()
+                  const expiresAt = new Date(parsedSession.expires_at * 1000)
+                  
+                  if (expiresAt > now) {
+                    console.log('✅ Fallback: Restaurando desde localStorage')
+                    setSession(parsedSession)
+                    setUser(parsedUser)
+                  } else {
+                    console.log('⚠️ Sesión expirada, limpiando')
+                    clearSession()
+                  }
+                } catch (error) {
+                  console.error('❌ Error en fallback:', error)
+                  clearSession()
+                }
+              }
             }
-          } catch (error) {
-            console.error('❌ Error restaurando sesión:', error)
+          } else if (!currentSession) {
+            console.log('ℹ️ No hay sesión en Supabase, limpiando estado')
             clearSession()
           }
+        } catch (error) {
+          console.error('❌ Error verificando sesión en visibilidad:', error)
         }
       }
     }
