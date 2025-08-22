@@ -30,6 +30,7 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [rateLimited, setRateLimited] = useState(false)
   const [countdown, setCountdown] = useState(0)
+  const [backoffCountdown, setBackoffCountdown] = useState(0)
   const { login } = useAuth()
   const router = useRouter()
 
@@ -49,6 +50,30 @@ export function LoginForm() {
     }
     return () => clearInterval(interval)
   }, [countdown])
+
+  // Effect para manejar el countdown del backoff de Supabase
+  useEffect(() => {
+    const checkBackoff = () => {
+      const backoffUntil = localStorage.getItem('supabase_backoff_until')
+      if (backoffUntil) {
+        const now = Date.now()
+        const remaining = parseInt(backoffUntil) - now
+        if (remaining > 0) {
+          setBackoffCountdown(Math.ceil(remaining / 1000))
+        } else {
+          setBackoffCountdown(0)
+          localStorage.removeItem('supabase_backoff_until')
+        }
+      }
+    }
+
+    // Verificar inmediatamente
+    checkBackoff()
+
+    // Verificar cada segundo
+    const interval = setInterval(checkBackoff, 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -124,6 +149,15 @@ export function LoginForm() {
             </Alert>
           </motion.div>
         )}
+        
+        {backoffCountdown > 0 && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Rate limit activo. Podrás intentar nuevamente en {backoffCountdown} segundos.
+            </AlertDescription>
+          </Alert>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="username">Correo electrónico</Label>
@@ -160,7 +194,7 @@ export function LoginForm() {
           <Button
             type="submit"
             className="w-full bg-orange-500 hover:bg-orange-600 text-white font-poppins"
-            disabled={loading || rateLimited}
+            disabled={loading || rateLimited || backoffCountdown > 0}
           >
             {loading ? (
               <div className="flex items-center">

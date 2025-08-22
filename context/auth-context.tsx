@@ -29,67 +29,35 @@ export interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Función para mapear roles de BD a roles del sistema
-const mapDatabaseRoleToSystemRole = (dbRole: string, email: string): string => {
-  // Usar directamente el rol de la base de datos si ya está en formato correcto
-  const upperRole = dbRole?.toUpperCase()
-  
-  // Mapeo directo de roles de BD
-  const roleMapping: Record<string, string> = {
-    'ADMIN': 'ADMIN',
-    'ADMINISTRATOR': 'ADMIN',
-    'INSPECCION_VIGILANCIA': 'INSPECCION_VIGILANCIA',
-    'COBERTURA_INFRAESTRUCTURA': 'COBERTURA_INFRAESTRUCTURA', 
-    'TALENTO_HUMANO': 'TALENTO_HUMANO',
-    'CALIDAD_EDUCATIVA': 'CALIDAD_EDUCATIVA',
-    'DESPACHO': 'DESPACHO',
-    'PLANEACION': 'PLANEACION',
-    'USER': 'USER'
-  }
-  
-  // Si el rol existe en el mapeo, usarlo directamente
-  if (roleMapping[upperRole]) {
-    return roleMapping[upperRole]
-  }
-  
-  // Mapeo para roles en minúsculas de la BD
-  if (dbRole === 'admin' || dbRole === 'administrator') {
-    return 'ADMIN'
-  }
-  
-  // Para user genérico, determinar por email según dependencia
-  if (dbRole === 'user') {
-    if (email?.includes('talentohumano')) return 'TALENTO_HUMANO'
-    if (email?.includes('cobertura')) return 'COBERTURA_INFRAESTRUCTURA'
-    if (email?.includes('inspeccion')) return 'INSPECCION_VIGILANCIA'
-    if (email?.includes('calidad')) return 'CALIDAD_EDUCATIVA'
-  }
-  
-  return 'USER'
-}
-
-// Función para normalizar roles
+// Normalizar roles
 const normalizeRole = (role: string | undefined | null): string => {
-  if (!role) return 'ADMIN'
+  if (!role) return 'USER'
   
-  const normalizedRole = role.toUpperCase().trim()
+  const upperRole = role.toUpperCase().trim()
   
-  const roleMapping: { [key: string]: string } = {
-    'ADMIN': 'ADMIN',
-    'ADMINISTRATOR': 'ADMIN',
-    'ADMINISTRADOR': 'ADMIN',
-    'DESPACHO': 'DESPACHO',
-    'PLANEACION': 'PLANEACION',
-    'SUPERVISOR': 'SUPERVISOR',
-    'USER': 'USER',
-    'USUARIO': 'USER',
-    'CALIDAD_EDUCATIVA': 'CALIDAD_EDUCATIVA',
-    'INSPECCION_VIGILANCIA': 'INSPECCION_VIGILANCIA',
-    'COBERTURA_INFRAESTRUCTURA': 'COBERTURA_INFRAESTRUCTURA',
-    'TALENTO_HUMANO': 'TALENTO_HUMANO'
+  switch (upperRole) {
+    case 'ADMIN':
+    case 'ADMINISTRADOR':
+      return 'ADMIN'
+    case 'CALIDAD_EDUCATIVA':
+    case 'CALIDAD':
+      return 'CALIDAD_EDUCATIVA'
+    case 'COBERTURA_INFRAESTRUCTURA':
+    case 'COBERTURA E INFRAESTRUCTURA':
+    case 'COBERTURA':
+      return 'COBERTURA_INFRAESTRUCTURA'
+    case 'INSPECCION_VIGILANCIA':
+    case 'INSPECCIÓN Y VIGILANCIA':
+    case 'INSPECCION':
+      return 'INSPECCION_VIGILANCIA'
+    case 'PLANEACION':
+    case 'PLANEACIÓN':
+      return 'PLANEACION'
+    case 'DESPACHO':
+      return 'DESPACHO'
+    default:
+      return 'USER'
   }
-  
-  return roleMapping[normalizedRole] || 'ADMIN'
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -98,246 +66,142 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   
-  // Cliente optimizado para autenticación
   const supabase = createClientComponentClient()
 
-  // Función de login optimizada con timeout
+  // Login simple y directo
   const login = useCallback(async (email: string, password: string) => {
     setLoading(true)
     
-    // Limpiar datos anteriores para forzar nueva consulta
-    localStorage.removeItem('supabase_session')
-    localStorage.removeItem('user_data')
-    setUser(null)
-    setSession(null)
-    
     try {
-      console.log('🔑 Intentando login con:', email)
-      console.log('🧹 localStorage limpiado para nueva consulta')
+      console.log('🔑 Iniciando login para:', email)
       
-      // Intentar login con reintentos automáticos
-      let attempts = 0
-      const maxAttempts = 2
-      let data: any, error: any
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
       
-      while (attempts < maxAttempts) {
-        attempts++
-        console.log(`🔄 Intento ${attempts}/${maxAttempts} de login`)
-        
-        try {
-          // Crear una promesa con timeout de 30 segundos (más tiempo para servidor lento)
-          const loginPromise = supabase.auth.signInWithPassword({
-            email,
-            password
-          })
-
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Login timeout - servidor demorado')), 30000)
-          )
-          
-          console.log('⏱️ Timeout configurado a 30 segundos para servidor lento')
-          
-          const result = await Promise.race([loginPromise, timeoutPromise]) as any
-           data = result.data
-           error = result.error
-           
-           // Si llegamos aquí, el intento fue exitoso o tuvo un error específico
-           if (error) {
-             console.error('❌ Error en login:', error.message)
-             return { success: false, error: error.message }
-           }
-           
-           // Login exitoso, procesar datos
-           if (data && data.user && data.session) {
-             console.log('✅ Login exitoso en intento', attempts)
-             break // Salir del bucle de reintentos
-           }
-           
-           // Si no hay datos válidos, continuar con el siguiente intento
-           if (attempts < maxAttempts) {
-             console.log('⚠️ No se obtuvieron datos válidos, reintentando...')
-             continue
-           }
-          
-        } catch (attemptError: any) {
-          console.warn(`⚠️ Intento ${attempts} falló:`, attemptError.message)
-          
-          // Si es el último intento o no es un error de timeout, lanzar el error
-          if (attempts >= maxAttempts || !attemptError.message.includes('timeout')) {
-            throw attemptError
-          }
-          
-          // Esperar un poco antes del siguiente intento
-          if (attempts < maxAttempts) {
-            console.log('⏳ Esperando 2 segundos antes del siguiente intento...')
-            await new Promise(resolve => setTimeout(resolve, 2000))
-          }
-        }
-      }
-
       if (error) {
         console.error('❌ Error en login:', error.message)
+        setLoading(false)
         return { success: false, error: error.message }
       }
-
+      
       if (data.user && data.session) {
         console.log('✅ Login exitoso')
         
-        // Usar función de BD optimizada para obtener datos del usuario
-        console.log('🔍 Consultando usuario con función BD get_user_role:', {
-          userId: data.user.id,
-          email: data.user.email
-        })
+        // Intentar obtener datos del usuario con función RPC
+        let userData: AuthUser
         
-        const { data: userProfile, error: profileError } = await supabase
-          .rpc('get_user_role', { user_id: data.user.id })
-          .single()
-        
-        console.log('📋 Resultado consulta get_user_role:', {
-          userProfile,
-          profileError: profileError?.message,
-          hasProfile: !!userProfile
-        })
-        
-        let userRole = 'USER'
-        let userName = data.user.email!.split('@')[0]
-        let userArea = null
-        let userDependencia = null
-        
-        if (userProfile && !profileError) {
-          // Usar directamente los datos de la función BD (ya normalizados)
-          userRole = userProfile.role || 'USER'
-          userName = userProfile.full_name || userName
-          userArea = userProfile.area_id
-          userDependencia = userProfile.dependencia
+        try {
+          console.log('🔍 Consultando rol con función RPC get_user_role')
+          const { data: userProfile, error: profileError } = await supabase
+            .rpc('get_user_role', { user_id: data.user.id })
+            .single()
           
-          console.log('✅ Usuario desde función BD get_user_role:', {
-            email: data.user.email,
-            role: userRole,
-            is_admin: userProfile.is_admin,
-            full_name: userProfile.full_name,
-            area_id: userProfile.area_id,
-            source: 'RPC_FUNCTION'
-          })
-        } else {
-          // Fallback a user_metadata si la función RPC falla
-          userRole = data.user.user_metadata?.role || data.user.app_metadata?.role || 'USER'
-          userName = data.user.user_metadata?.full_name || userName
-          userArea = data.user.user_metadata?.area
-          userDependencia = data.user.user_metadata?.area
-          
-          console.log('⚠️ Fallback a user_metadata:', {
-            email: data.user.email,
-            userId: data.user.id,
-            error: profileError?.message,
-            fallbackRole: userRole,
-            userMetadata: data.user.user_metadata
-          })
+          if (userProfile && !profileError) {
+            console.log('✅ Datos obtenidos de tabla profiles:', userProfile)
+            userData = {
+              id: data.user.id,
+              email: userProfile.email || data.user.email!,
+              name: userProfile.full_name || data.user.email!.split('@')[0],
+              role: normalizeRole(userProfile.role || 'USER'),
+              area_id: userProfile.area_id,
+              dependencia: userProfile.dependencia
+            }
+          } else {
+            console.warn('⚠️ RPC falló, usando user_metadata:', profileError?.message)
+            userData = {
+              id: data.user.id,
+              email: data.user.email!,
+              name: data.user.user_metadata?.full_name || data.user.email!.split('@')[0],
+              role: normalizeRole(data.user.user_metadata?.role || 'USER'),
+              area_id: data.user.user_metadata?.area,
+              dependencia: data.user.user_metadata?.dependencia
+            }
+          }
+        } catch (rpcError: any) {
+          console.warn('⚠️ Error en RPC, usando fallback:', rpcError.message)
+          userData = {
+            id: data.user.id,
+            email: data.user.email!,
+            name: data.user.user_metadata?.full_name || data.user.email!.split('@')[0],
+            role: normalizeRole(data.user.user_metadata?.role || 'USER'),
+            area_id: data.user.user_metadata?.area,
+            dependencia: data.user.user_metadata?.dependencia
+          }
         }
         
-        const normalizedRole = normalizeRole(userRole)
-        
-        // Crear usuario con rol correcto (desde función BD)
-        const userData: AuthUser = {
-          id: data.user.id,
-          email: data.user.email!,
-          name: userName,
-          role: normalizedRole
-        }
-        
-        console.log('👤 Usuario logueado con función BD:', {
+        console.log('👤 Usuario creado:', {
           email: userData.email,
-          role: userData.role,
-          normalizedRole: normalizedRole,
-          originalRole: userRole,
-          fromBDFunction: !!userProfile,
-          profileError: profileError?.message
+          role: userData.role
         })
         
         setUser(userData)
         setSession(data.session)
         
-        // Guardar en localStorage para persistencia
+        // Guardar en localStorage
         localStorage.setItem('supabase_session', JSON.stringify(data.session))
         localStorage.setItem('user_data', JSON.stringify(userData))
         
+        setLoading(false)
         return { success: true }
       }
-
-      return { success: false, error: 'No se pudo iniciar sesión' }
-    } catch (error: any) {
-      console.error('❌ Error inesperado en login:', error)
       
-      let errorMessage = 'Error inesperado al iniciar sesión'
-      
-      if (error.message === 'Login timeout - servidor demorado') {
-        errorMessage = '⏱️ El servidor está tardando más de lo normal. Verifica tu conexión e intenta nuevamente.'
-      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
-        errorMessage = '🌐 Problema de conexión. Verifica tu internet e intenta nuevamente.'
-      } else if (error.message?.includes('Invalid login credentials')) {
-        errorMessage = '🔐 Email o contraseña incorrectos. Verifica tus credenciales.'
-      } else if (error.message?.includes('Email not confirmed')) {
-        errorMessage = '📧 Debes confirmar tu email antes de iniciar sesión.'
-      } else if (error.message?.includes('Too many requests')) {
-        errorMessage = '⚠️ Demasiados intentos. Espera unos minutos antes de intentar nuevamente.'
-      }
-      
-      console.log('📝 Mensaje de error para usuario:', errorMessage)
-      return { success: false, error: errorMessage }
-    } finally {
       setLoading(false)
+      return { success: false, error: 'No se pudo obtener datos del usuario' }
+      
+    } catch (error: any) {
+      console.error('❌ Error inesperado:', error)
+      setLoading(false)
+      return { success: false, error: 'Error inesperado al iniciar sesión' }
     }
   }, [supabase])
 
-  // Función de logout
+  // Logout
   const logout = useCallback(async () => {
-    setLoading(true)
-    
     try {
       await supabase.auth.signOut()
       setUser(null)
       setSession(null)
-      
-      // Limpiar localStorage
       localStorage.removeItem('supabase_session')
       localStorage.removeItem('user_data')
-      
-      router.push('/')
+      console.log('👋 Logout exitoso')
     } catch (error) {
-      console.error('Error en logout:', error)
-    } finally {
-      setLoading(false)
+      console.error('❌ Error en logout:', error)
     }
-  }, [supabase, router])
+  }, [supabase])
 
-  // Función para limpiar sesión
+  // Limpiar sesión
   const clearSession = useCallback(() => {
     setUser(null)
     setSession(null)
     localStorage.removeItem('supabase_session')
     localStorage.removeItem('user_data')
+    console.log('🧹 Sesión limpiada')
   }, [])
 
-  // Función para refrescar sesión
+  // Refrescar sesión
   const refreshSession = useCallback(async () => {
     try {
-      const { data } = await supabase.auth.refreshSession()
+      const { data, error } = await supabase.auth.refreshSession()
       if (data.session) {
         setSession(data.session)
         localStorage.setItem('supabase_session', JSON.stringify(data.session))
       }
     } catch (error) {
-      console.error('Error refreshing session:', error)
+      console.error('❌ Error refrescando sesión:', error)
     }
   }, [supabase])
 
-  // Efecto optimizado para inicializar la autenticación - sin consultas extras
+  // Inicialización
   useEffect(() => {
     let mounted = true
 
     const initializeAuth = async () => {
       try {
-        // Primero intentar cargar desde localStorage (más rápido)
+        console.log('🚀 Inicializando autenticación...')
+        
+        // Verificar localStorage primero
         const savedSession = localStorage.getItem('supabase_session')
         const savedUser = localStorage.getItem('user_data')
         
@@ -346,138 +210,105 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const parsedSession = JSON.parse(savedSession)
             const parsedUser = JSON.parse(savedUser)
             
-            // Verificar si la sesión no ha expirado
+            // Verificar si no ha expirado
             const now = new Date()
             const expiresAt = new Date(parsedSession.expires_at * 1000)
             
             if (expiresAt > now) {
+              console.log('✅ Sesión válida en localStorage')
               setSession(parsedSession)
               setUser(parsedUser)
-              setLoading(false)
-              return // Salir temprano si encontramos sesión válida
+              if (mounted) setLoading(false)
+              return
             } else {
+              console.log('⚠️ Sesión expirada')
               clearSession()
             }
           } catch (error) {
-            console.error('Error parsing saved session:', error)
+            console.error('❌ Error parsing localStorage:', error)
             clearSession()
           }
         }
 
-        // Solo si no hay sesión guardada, consultar Supabase
+        // Consultar Supabase
         const { data: { session: currentSession } } = await supabase.auth.getSession()
         
         if (currentSession && mounted) {
-          console.log('📱 Sesión encontrada en Supabase')
-          setSession(currentSession)
+          console.log('✅ Sesión encontrada en Supabase')
           
-          // Usar función RPC optimizada para obtener datos del usuario
-          const { data: userProfile, error: profileError } = await supabase
-            .rpc('get_user_role', { user_id: currentSession.user.id })
-            .single()
+          // Intentar obtener datos del usuario con función RPC
+          let userData: AuthUser
           
-          let userRole = 'USER'
-          let userName = currentSession.user.email!.split('@')[0]
-          let userArea = null
-          let userDependencia = null
-          
-          if (userProfile && !profileError) {
-              // Usar datos ya normalizados de la función RPC
-              userRole = userProfile.role || 'USER'
-              userName = userProfile.full_name || userName
-              userArea = userProfile.area_id || null
-              userDependencia = userProfile.dependencia || null
+          try {
+            console.log('🔍 Restaurando sesión - consultando rol con RPC')
+            const { data: userProfile, error: profileError } = await supabase
+              .rpc('get_user_role', { user_id: currentSession.user.id })
+              .single()
+            
+            if (userProfile && !profileError) {
+              console.log('✅ Datos de sesión obtenidos de tabla profiles:', userProfile)
+              userData = {
+                id: currentSession.user.id,
+                email: userProfile.email || currentSession.user.email!,
+                name: userProfile.full_name || currentSession.user.email!.split('@')[0],
+                role: normalizeRole(userProfile.role || 'USER'),
+                area_id: userProfile.area_id,
+                dependencia: userProfile.dependencia
+              }
             } else {
-            // Fallback a user_metadata si la función RPC falla
-            userRole = currentSession.user.user_metadata?.role || currentSession.user.app_metadata?.role || 'USER'
-            userName = currentSession.user.user_metadata?.full_name || userName
-            userArea = currentSession.user.user_metadata?.area
-            userDependencia = currentSession.user.user_metadata?.area
+              console.warn('⚠️ RPC falló en restauración, usando user_metadata:', profileError?.message)
+              userData = {
+                id: currentSession.user.id,
+                email: currentSession.user.email!,
+                name: currentSession.user.user_metadata?.full_name || currentSession.user.email!.split('@')[0],
+                role: normalizeRole(currentSession.user.user_metadata?.role || 'USER'),
+                area_id: currentSession.user.user_metadata?.area,
+                dependencia: currentSession.user.user_metadata?.dependencia
+              }
+            }
+          } catch (rpcError: any) {
+            console.warn('⚠️ Error en RPC durante restauración:', rpcError.message)
+            userData = {
+              id: currentSession.user.id,
+              email: currentSession.user.email!,
+              name: currentSession.user.user_metadata?.full_name || currentSession.user.email!.split('@')[0],
+              role: normalizeRole(currentSession.user.user_metadata?.role || 'USER'),
+              area_id: currentSession.user.user_metadata?.area,
+              dependencia: currentSession.user.user_metadata?.dependencia
+            }
           }
-          
-          const normalizedRole = normalizeRole(userRole)
-          
-          // Crear usuario con rol correcto
-          const userData: AuthUser = {
-            id: currentSession.user.id,
-            email: currentSession.user.email!,
-            name: userName,
-            role: normalizedRole,
-            area_id: userArea,
-            dependencia: userDependencia
-          }
-          
-          console.log('🔄 Sesión restaurada:', {
-            email: userData.email,
-            role: userData.role,
-            area: userData.area_id,
-            fromDatabase: !!userProfile
-          })
           
           setUser(userData)
+          setSession(currentSession)
           localStorage.setItem('supabase_session', JSON.stringify(currentSession))
           localStorage.setItem('user_data', JSON.stringify(userData))
+        } else {
+          console.log('ℹ️ No hay sesión activa')
         }
       } catch (error) {
-        console.error('Error initializing auth:', error)
+        console.error('❌ Error inicializando:', error)
       } finally {
-        if (mounted) {
-          setLoading(false)
-        }
+        if (mounted) setLoading(false)
       }
     }
 
     initializeAuth()
 
-    // Escuchar cambios de autenticación (simplificado)
+    // Escuchar cambios de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return
 
       console.log('🔄 Auth state change:', event)
 
       if (event === 'SIGNED_IN' && session) {
-        // Usar función RPC optimizada para obtener datos del usuario
-         const { data: userProfile, error: profileError } = await supabase
-           .rpc('get_user_role', { user_id: session.user.id })
-           .single()
-        
-        let userRole = 'USER'
-        let userName = session.user.email!.split('@')[0]
-        let userArea = null
-        let userDependencia = null
-        
-        if (userProfile && !profileError) {
-             // Usar datos ya normalizados de la función RPC
-             userRole = userProfile.role || 'USER'
-             userName = userProfile.full_name || userName
-             userArea = userProfile.area_id || null
-             userDependencia = userProfile.dependencia || null
-           } else {
-           // Fallback a user_metadata si la función RPC falla
-           userRole = session.user.user_metadata?.role || session.user.app_metadata?.role || 'USER'
-           userName = session.user.user_metadata?.full_name || userName
-           userArea = session.user.user_metadata?.area
-           userDependencia = session.user.user_metadata?.area
-         }
-        
-        const normalizedRole = normalizeRole(userRole)
-        
         const userData: AuthUser = {
           id: session.user.id,
           email: session.user.email!,
-          name: userName,
-          role: normalizedRole,
-          area_id: userArea,
-          dependencia: userDependencia
+          name: session.user.user_metadata?.full_name || session.user.email!.split('@')[0],
+          role: normalizeRole(session.user.user_metadata?.role || 'USER'),
+          area_id: session.user.user_metadata?.area,
+          dependencia: session.user.user_metadata?.dependencia
         }
-        
-        console.log('🔄 Estado de auth cambiado:', {
-          event,
-          email: userData.email,
-          role: userData.role,
-          area: userData.area_id,
-          fromDatabase: !!userProfile
-        })
         
         setUser(userData)
         setSession(session)
