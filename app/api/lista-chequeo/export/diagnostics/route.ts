@@ -94,12 +94,12 @@ export async function GET(request: NextRequest) {
     }
     
     try {
-      await import('@/lib/supabase-client-production');
-      diagnostics.moduleChecks['@/lib/supabase-client-production'] = { available: true };
+      await import('@/lib/supabase-client');
+      diagnostics.moduleChecks['@/lib/supabase-client'] = { available: true };
     } catch (error) {
-      diagnostics.moduleChecks['@/lib/supabase-client-production'] = {
+      diagnostics.moduleChecks['@/lib/supabase-client'] = {
         available: false,
-        error: error instanceof Error ? error.message : 'Import error'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
 

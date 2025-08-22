@@ -1,13 +1,13 @@
 // app/api/lista-chequeo/export/production-test/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseClientForProduction } from '@/lib/supabase-client-production';
+import { createClient } from '@/lib/supabase-client';
 
 export async function GET(request: NextRequest) {
   console.log('🚀 PRUEBA ESPECÍFICA PARA PRODUCCIÓN');
   
   try {
     // 1. Crear cliente usando la función optimizada
-    const supabase = createSupabaseClientForProduction();
+    const supabase = createClient();
     
     // 2. Hacer una consulta simple
     const { data: test, error } = await supabase

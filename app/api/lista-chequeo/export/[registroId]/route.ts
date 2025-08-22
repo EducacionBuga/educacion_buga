@@ -16,8 +16,8 @@ export async function GET(
     
     // Importar cliente Supabase
     try {
-      const supabaseModule = await import('@/lib/supabase-client-production');
-      createSupabaseClientForProduction = supabaseModule.createSupabaseClientForProduction;
+      const supabaseModule = await import('@/lib/supabase-client');
+      createSupabaseClientForProduction = supabaseModule.createClient;
       console.log('✅ Cliente Supabase importado');
     } catch (importError) {
       console.error('❌ Error importando cliente Supabase:', importError);

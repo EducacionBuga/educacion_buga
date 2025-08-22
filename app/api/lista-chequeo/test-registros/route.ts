@@ -1,10 +1,10 @@
 // app/api/lista-chequeo/test-registros/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseClientForProduction } from '@/lib/supabase-client-production';
+import { createClient } from '@/lib/supabase-client';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createSupabaseClientForProduction();
+    const supabase = createClient();
     
     const { data: registros, error } = await supabase
       .from('lista_chequeo_registros')
