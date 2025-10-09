@@ -237,11 +237,13 @@ export function MatrizMejorada({
 
   // Formatear presupuesto
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
+    // Formatear con puntos como separadores de miles (formato colombiano)
+    const formatted = amount.toLocaleString('es-CO', {
       minimumFractionDigits: 0,
-    }).format(amount)
+      maximumFractionDigits: 0
+    });
+    
+    return `$${formatted}`;
   }
 
   // Componente de tarjeta de plan

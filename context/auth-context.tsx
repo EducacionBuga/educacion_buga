@@ -188,15 +188,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Refrescar sesión
   const refreshSession = useCallback(async () => {
     try {
+      console.log('🔄 Refrescando sesión...')
       const { data, error } = await supabase.auth.refreshSession()
-      if (data.session) {
+      
+      if (data.session && !error) {
+        console.log('✅ Sesión refrescada exitosamente')
         setSession(data.session)
         localStorage.setItem('supabase_session', JSON.stringify(data.session))
+        
+        // Mantener los datos del usuario actuales
+        if (user) {
+          localStorage.setItem('user_data', JSON.stringify(user))
+        }
+      } else {
+        console.warn('⚠️ Error refrescando sesión:', error?.message)
+        // Si no se puede refrescar, limpiar la sesión
+        clearSession()
       }
     } catch (error) {
-      console.error('❌ Error refrescando sesión:', error)
+      console.error('❌ Error inesperado refrescando sesión:', error)
+      clearSession()
     }
-  }, [supabase])
+  }, [supabase, user, clearSession])
 
   // Inicialización
   useEffect(() => {
@@ -206,40 +219,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         console.log('🚀 Inicializando autenticación...')
         
-        // Verificar localStorage primero
-        const savedSession = localStorage.getItem('supabase_session')
-        const savedUser = localStorage.getItem('user_data')
-        
-        if (savedSession && savedUser && mounted) {
-          try {
-            const parsedSession = JSON.parse(savedSession)
-            const parsedUser = JSON.parse(savedUser)
-            
-            // Verificar si no ha expirado
-            const now = new Date()
-            const expiresAt = new Date(parsedSession.expires_at * 1000)
-            
-            if (expiresAt > now) {
-              console.log('✅ Sesión válida en localStorage')
-              setSession(parsedSession)
-              setUser(parsedUser)
-              if (mounted) setLoading(false)
-              return
-            } else {
-              console.log('⚠️ Sesión expirada')
-              clearSession()
-            }
-          } catch (error) {
-            console.error('❌ Error parsing localStorage:', error)
-            clearSession()
-          }
-        }
-
-        // Consultar Supabase
+        // Primero verificar si hay sesión en Supabase (más confiable)
         const { data: { session: currentSession } } = await supabase.auth.getSession()
         
         if (currentSession && mounted) {
-          console.log('✅ Sesión encontrada en Supabase')
+          console.log('✅ Sesión activa encontrada en Supabase')
           
           // Intentar obtener datos del usuario con función RPC
           let userData: AuthUser
@@ -283,15 +267,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           }
           
+          // Establecer estado inmediatamente
           setUser(userData)
           setSession(currentSession)
+          
+          // Guardar en localStorage para respaldo
           localStorage.setItem('supabase_session', JSON.stringify(currentSession))
           localStorage.setItem('user_data', JSON.stringify(userData))
+          
+          console.log('✅ Sesión restaurada exitosamente')
         } else {
-          console.log('ℹ️ No hay sesión activa')
+          // Si no hay sesión en Supabase, verificar localStorage como fallback
+          console.log('ℹ️ No hay sesión en Supabase, verificando localStorage...')
+          
+          const savedSession = localStorage.getItem('supabase_session')
+          const savedUser = localStorage.getItem('user_data')
+          
+          if (savedSession && savedUser && mounted) {
+            try {
+              const parsedSession = JSON.parse(savedSession)
+              const parsedUser = JSON.parse(savedUser)
+              
+              // Verificar si no ha expirado (con margen de 5 minutos)
+              const now = new Date()
+              const expiresAt = new Date(parsedSession.expires_at * 1000)
+              const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000)
+              
+              if (expiresAt > fiveMinutesFromNow) {
+                console.log('✅ Sesión válida en localStorage, intentando restaurar en Supabase')
+                
+                // Intentar restaurar la sesión en Supabase
+                try {
+                  const { data, error } = await supabase.auth.setSession({
+                    access_token: parsedSession.access_token,
+                    refresh_token: parsedSession.refresh_token
+                  })
+                  
+                  if (data.session && !error) {
+                    console.log('✅ Sesión restaurada en Supabase desde localStorage')
+                    setSession(data.session)
+                    setUser(parsedUser)
+                    
+                    // Actualizar localStorage con la nueva sesión
+                    localStorage.setItem('supabase_session', JSON.stringify(data.session))
+                  } else {
+                    console.warn('⚠️ No se pudo restaurar sesión en Supabase:', error?.message)
+                    clearSession()
+                  }
+                } catch (restoreError) {
+                  console.error('❌ Error restaurando sesión:', restoreError)
+                  clearSession()
+                }
+              } else {
+                console.log('⚠️ Sesión expirada en localStorage')
+                clearSession()
+              }
+            } catch (error) {
+              console.error('❌ Error parsing localStorage:', error)
+              clearSession()
+            }
+          } else {
+            console.log('ℹ️ No hay datos de sesión guardados')
+          }
         }
       } catch (error) {
-        console.error('❌ Error inicializando:', error)
+        console.error('❌ Error inicializando autenticación:', error)
       } finally {
         if (mounted) setLoading(false)
       }
@@ -306,24 +346,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('🔄 Auth state change:', event)
 
       if (event === 'SIGNED_IN' && session) {
-        const userData: AuthUser = {
-          id: session.user.id,
-          email: session.user.email!,
-          name: session.user.user_metadata?.full_name || session.user.email!.split('@')[0],
-          role: normalizeRole(session.user.user_metadata?.role || 'USER'),
-          area_id: session.user.user_metadata?.area,
-          dependencia: session.user.user_metadata?.dependencia
+        // Solo actualizar si no tenemos ya una sesión válida
+        if (!user || user.id !== session.user.id) {
+          const userData: AuthUser = {
+            id: session.user.id,
+            email: session.user.email!,
+            name: session.user.user_metadata?.full_name || session.user.email!.split('@')[0],
+            role: normalizeRole(session.user.user_metadata?.role || 'USER'),
+            area_id: session.user.user_metadata?.area,
+            dependencia: session.user.user_metadata?.dependencia
+          }
+          
+          setUser(userData)
+          setSession(session)
+          localStorage.setItem('supabase_session', JSON.stringify(session))
+          localStorage.setItem('user_data', JSON.stringify(userData))
+          console.log('✅ Sesión actualizada por auth state change')
         }
-        
-        setUser(userData)
-        setSession(session)
-        localStorage.setItem('supabase_session', JSON.stringify(session))
-        localStorage.setItem('user_data', JSON.stringify(userData))
       } else if (event === 'SIGNED_OUT') {
+        console.log('👋 Usuario desconectado')
         setUser(null)
         setSession(null)
         localStorage.removeItem('supabase_session')
         localStorage.removeItem('user_data')
+      } else if (event === 'TOKEN_REFRESHED' && session) {
+        console.log('🔄 Token refrescado')
+        setSession(session)
+        localStorage.setItem('supabase_session', JSON.stringify(session))
       }
     })
 

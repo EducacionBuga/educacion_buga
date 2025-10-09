@@ -98,10 +98,11 @@ export const extractNumberFromCurrency = (value: string): number => {
 export const formatCurrency = (value: number | string | null | undefined): string => {
   const numValue = typeof value === 'number' ? value : Number.parseFloat(String(value || "0").replace(/[^0-9.-]+/g, "")) || 0
   
-  return numValue.toLocaleString("es-CO", {
-    style: "currency",
-    currency: "COP",
+  // Formatear con puntos como separadores de miles (formato colombiano)
+  const formatted = numValue.toLocaleString("es-CO", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   })
+  
+  return `$${formatted}`
 }

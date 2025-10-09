@@ -88,26 +88,56 @@ export function TimelineView({ projects, className }: TimelineViewProps) {
     return diffDays
   }
 
-  // Obtener el color basado en el estado del proyecto
-  const getStatusColor = (status: string, defaultColor?: string) => {
+  // Obtener las clases de color completas basadas en el estado del proyecto
+  const getStatusColorClasses = (status: string, defaultColor?: string) => {
     if (defaultColor) {
       if (defaultColor.startsWith("bg-")) {
-        return defaultColor.replace("bg-", "")
+        const color = defaultColor.replace("bg-", "").replace("-500", "")
+        return {
+          border: `border-${color}-500`,
+          bg: `bg-${color}-500`,
+          bgLight: `bg-${color}-50`,
+          borderLight: `border-${color}-200`
+        }
       }
-      return defaultColor
     }
 
     switch (status) {
       case "Completado":
-        return "green"
+        return {
+          border: "border-green-500",
+          bg: "bg-green-500",
+          bgLight: "bg-green-50",
+          borderLight: "border-green-200"
+        }
       case "En progreso":
-        return "blue"
+        return {
+          border: "border-blue-500",
+          bg: "bg-blue-500",
+          bgLight: "bg-blue-50",
+          borderLight: "border-blue-200"
+        }
       case "Pendiente":
-        return "orange"
+        return {
+          border: "border-orange-500",
+          bg: "bg-orange-500",
+          bgLight: "bg-orange-50",
+          borderLight: "border-orange-200"
+        }
       case "Retrasado":
-        return "red"
+        return {
+          border: "border-red-500",
+          bg: "bg-red-500",
+          bgLight: "bg-red-50",
+          borderLight: "border-red-200"
+        }
       default:
-        return "gray"
+        return {
+          border: "border-gray-500",
+          bg: "bg-gray-500",
+          bgLight: "bg-gray-50",
+          borderLight: "border-gray-200"
+        }
     }
   }
 
@@ -208,7 +238,7 @@ export function TimelineView({ projects, className }: TimelineViewProps) {
           {sortedProjects.length > 0 ? (
             <div ref={ref} className="relative max-w-7xl mx-auto pb-20">
               {sortedProjects.map((project, index) => {
-                const statusColor = getStatusColor(project.estado, project.color)
+                const statusColors = getStatusColorClasses(project.estado, project.color)
                 const duration = calculateDuration(project.fechaInicio, project.fechaFin)
                 const progress = getProjectProgress(project)
 
@@ -216,10 +246,10 @@ export function TimelineView({ projects, className }: TimelineViewProps) {
                   <div key={project.id} className="flex justify-start pt-10 md:pt-20 md:gap-10">
                     <div className="sticky flex flex-col md:flex-row z-40 items-center top-40 self-start max-w-xs lg:max-w-sm md:w-full">
                       <div
-                        className={`h-10 absolute left-3 md:left-3 w-10 rounded-full bg-white dark:bg-black flex items-center justify-center border-2 border-${statusColor}-500`}
+                        className={`h-10 absolute left-3 md:left-3 w-10 rounded-full bg-white dark:bg-black flex items-center justify-center border-2 ${statusColors.border}`}
                       >
                         <div
-                          className={`h-6 w-6 rounded-full bg-${statusColor}-500 flex items-center justify-center text-white`}
+                          className={`h-6 w-6 rounded-full ${statusColors.bg} flex items-center justify-center text-white`}
                         >
                           {getStatusIcon(project.estado)}
                         </div>
@@ -234,7 +264,7 @@ export function TimelineView({ projects, className }: TimelineViewProps) {
                         {formatDate(project.fechaInicio)}
                       </h3>
 
-                      <div className={`p-4 rounded-lg border border-${statusColor}-200 bg-${statusColor}-50 mb-6`}>
+                      <div className={`p-4 rounded-lg border ${statusColors.borderLight} ${statusColors.bgLight} mb-6`}>
                         <div className="flex flex-col gap-2">
                           <div className="flex justify-between items-start">
                             <h3 className="text-lg font-bold text-neutral-800 dark:text-neutral-200">
@@ -242,7 +272,7 @@ export function TimelineView({ projects, className }: TimelineViewProps) {
                             </h3>
                             <Badge
                               variant="outline"
-                              className={`bg-${statusColor}-100 text-${statusColor}-800 border-${statusColor}-200`}
+                              className={`${statusColors.bgLight} text-gray-800 ${statusColors.borderLight}`}
                             >
                               {project.estado}
                             </Badge>
@@ -304,7 +334,7 @@ export function TimelineView({ projects, className }: TimelineViewProps) {
                               <h4 className="text-sm font-medium">Progreso</h4>
                               <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
                                 <div
-                                  className={`h-2.5 rounded-full bg-${statusColor}-500`}
+                                  className={`h-2.5 rounded-full ${statusColors.bg}`}
                                   style={{ width: `${progress}%` }}
                                 ></div>
                               </div>

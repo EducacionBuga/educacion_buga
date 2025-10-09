@@ -33,13 +33,13 @@ export const SpecificInfoSection = React.memo<SpecificInfoSectionProps>(({
     
     if (isNaN(number)) return '';
     
-    // Formatear con separadores de miles
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
+    // Formatear con puntos como separadores de miles (formato colombiano)
+    const formatted = number.toLocaleString('es-CO', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(number);
+    });
+    
+    return `$${formatted}`;
   };
 
   const handlePresupuestoChange = (e: React.ChangeEvent<HTMLInputElement>) => {

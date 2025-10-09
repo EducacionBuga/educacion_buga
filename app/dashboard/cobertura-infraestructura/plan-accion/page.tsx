@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { RoleGuard } from "@/components/auth/role-guard"
 import { ModuleHeader } from "@/components/dashboard/module-header"
 import PlanAccionAreaMejorado from "@/components/modules/plan-accion-area-mejorado"
@@ -17,7 +17,7 @@ export default function PlanAccionAreaPage() {
   }, [])
 
   // Cargar datos del localStorage al iniciar
-  useState(() => {
+  useEffect(() => {
     try {
       const storedItems = localStorage.getItem("cobertura-infraestructura-plan-accion")
       if (storedItems) {
@@ -26,7 +26,7 @@ export default function PlanAccionAreaPage() {
     } catch (error) {
       console.error("Error loading stored items:", error)
     }
-  })
+  }, [])
 
   return (
     <RoleGuard allowedRoles={["ADMIN", "COBERTURA_INFRAESTRUCTURA"]}>

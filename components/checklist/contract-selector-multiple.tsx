@@ -81,10 +81,13 @@ export function ContractSelectorMultiple({
   }
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP'
-    }).format(value)
+    // Formatear con puntos como separadores de miles (formato colombiano)
+    const formatted = value.toLocaleString('es-CO', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    });
+    
+    return `$${formatted}`;
   }
 
   return (
