@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File type not allowed for photos" }, { status: 400 })
     }
 
-    const maxSize = 10 * 1024 * 1024 // 10MB para fotos
+    const maxSize = 50 * 1024 * 1024 // 50MB para fotos
     if (file.size > maxSize) {
       return NextResponse.json({ error: "File size too large" }, { status: 400 })
     }

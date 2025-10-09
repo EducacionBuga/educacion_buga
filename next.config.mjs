@@ -9,6 +9,13 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Configuración para manejar archivos grandes en Next.js 15
+  experimental: {
+    // Configuraciones experimentales para archivos grandes
+    serverMinification: false,
+  },
+  // Configuración de paquetes externos del servidor
+  serverExternalPackages: [],
   async headers() {
     return [
       {

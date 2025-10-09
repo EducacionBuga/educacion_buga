@@ -15,8 +15,8 @@ const ALLOWED_TYPES = [
   "text/csv",
 ]
 
-// Tamaño máximo de archivo (10MB)
-const MAX_FILE_SIZE = 10 * 1024 * 1024
+// Tamaño máximo de archivo (50MB)
+const MAX_FILE_SIZE = 50 * 1024 * 1024
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     // Validar tamaño de archivo
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ error: "Archivo demasiado grande (máximo 10MB)" }, { status: 400 })
+      return NextResponse.json({ error: "Archivo demasiado grande (máximo 50MB)" }, { status: 400 })
     }
 
     // Convertir el slug del área a un UUID válido
