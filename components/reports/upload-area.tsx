@@ -108,7 +108,7 @@ export function UploadArea({ onFileSelected, isUploading = false }: UploadAreaPr
           aria-label="Seleccionar archivo"
         />
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-          Formatos soportados: {allowedExtensions} | Tamaño máximo: 15MB
+          Formatos soportados: {allowedExtensions} | Tamaño máximo: 4.5MB
         </p>
       </div>
     </div>

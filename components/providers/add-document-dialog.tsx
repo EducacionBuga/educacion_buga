@@ -50,7 +50,7 @@ export function AddDocumentDialog({
     if (file.size > 15 * 1024 * 1024) {
       toast({
         title: "Archivo demasiado grande",
-        description: "El archivo no debe superar 15MB",
+        description: "El archivo no debe superar 4.5MB",
         variant: "destructive",
       })
       return
@@ -217,7 +217,7 @@ export function AddDocumentDialog({
                   Seleccionar
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  Tamaño máximo: 15MB. Formatos permitidos: PDF, DOCX, XLSX, JPG, PNG.
+                  Tamaño máximo: 4.5MB. Formatos permitidos: PDF, DOCX, XLSX, JPG, PNG.
                 </p>
               </div>
             </div>
