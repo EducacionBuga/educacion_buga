@@ -196,10 +196,40 @@ export function usePlanAccionService(areaSlug: string) {
     try {
       console.log(`Cargando planes de acción para área ID: ${areaId}`)
       
-      // Consulta simple y directa como antes
+      // Consulta con campos específicos (sin campo 'numero' que no existe)
       const { data, error } = await supabase
         .from("plan_accion")
-        .select("*")
+        .select(`
+          id,
+          area_id,
+          usuario_id,
+          programa,
+          objetivo,
+          meta,
+          presupuesto,
+          acciones,
+          indicadores,
+          porcentaje_avance,
+          fecha_inicio,
+          fecha_fin,
+          responsable,
+          estado,
+          prioridad,
+          comentarios,
+          created_at,
+          updated_at,
+          meta_docenal,
+          macroobjetivo_docenal,
+          objetivo_docenal,
+          programa_pdm,
+          subprograma_pdm,
+          proyecto_pdm,
+          grupo_etareo,
+          grupo_poblacion,
+          zona,
+          grupo_etnico,
+          cantidad
+        `)
         .eq("area_id", areaId)
         .order("created_at", { ascending: false })
       
@@ -212,6 +242,22 @@ export function usePlanAccionService(areaSlug: string) {
         console.log("No se encontraron datos")
         return []
       }
+      
+      // 🔍 DEBUG: Ver datos crudos de Supabase
+      console.log("🔍 DATOS CRUDOS DE SUPABASE:", {
+        count: data.length,
+        firstItem: data[0],
+        campos_docenal: data[0] ? {
+          meta_docenal: data[0].meta_docenal,
+          macroobjetivo_docenal: data[0].macroobjetivo_docenal,
+          objetivo_docenal: data[0].objetivo_docenal
+        } : null,
+        campos_pdm: data[0] ? {
+          programa_pdm: data[0].programa_pdm,
+          subprograma_pdm: data[0].subprograma_pdm,
+          proyecto_pdm: data[0].proyecto_pdm
+        } : null
+      })
       
       // Transformar datos al formato esperado por la aplicación
       const formattedItems: PlanAccionItem[] = (data || []).map((item) => ({
@@ -229,21 +275,45 @@ export function usePlanAccionService(areaSlug: string) {
         estado: item.estado || "Pendiente",
         prioridad: item.prioridad || "Media",
         comentarios: item.comentarios || "",
-        // Mapear campos del Plan Decenal de snake_case a camelCase
-        metaDecenal: item.meta_docenal || "",
-        macroobjetivoDecenal: item.macroobjetivo_docenal || "",
-        objetivoDecenal: item.objetivo_docenal || "",
+        // Mapear campos del Plan Decenal de snake_case a camelCase (docenal -> decenal)
+        metaDecenal: item.meta_docenal || undefined,
+        macroobjetivoDecenal: item.macroobjetivo_docenal || undefined,
+        objetivoDecenal: item.objetivo_docenal || undefined,
         // Mapear campos del PDM de snake_case a camelCase
-        programaPDM: item.programa_pdm || "",
-        subprogramaPDM: item.subprograma_pdm || "",
-        proyectoPDM: item.proyecto_pdm || "",
+        programaPDM: item.programa_pdm || undefined,
+        subprogramaPDM: item.subprograma_pdm || undefined,
+        proyectoPDM: item.proyecto_pdm || undefined,
         // Mapear campos demográficos de snake_case a camelCase
-        grupoEtareo: item.grupo_etareo || "",
-        grupoPoblacion: item.grupo_poblacion || "",
-        zona: item.zona || "",
-        grupoEtnico: item.grupo_etnico || "",
-        cantidad: item.cantidad !== null ? String(item.cantidad) : "",
+        grupoEtareo: item.grupo_etareo || undefined,
+        grupoPoblacion: item.grupo_poblacion || undefined,
+        zona: item.zona || undefined,
+        grupoEtnico: item.grupo_etnico || undefined,
+        cantidad: item.cantidad !== null && item.cantidad !== undefined ? String(item.cantidad) : undefined,
       }))
+      
+      // 🔥 DEBUG: Ver items transformados
+      console.log("🔥 ITEMS TRANSFORMADOS:", {
+        count: formattedItems.length,
+        firstItem: formattedItems[0],
+        metaDecenal: formattedItems[0]?.metaDecenal,
+        programaPDM: formattedItems[0]?.programaPDM
+      })
+
+      // 🔍 DEBUG: Ver datos después del mapeo
+      console.log("🔍 DATOS DESPUÉS DEL MAPEO:", {
+        count: formattedItems.length,
+        firstItem: formattedItems[0],
+        campos_decenal: formattedItems[0] ? {
+          metaDecenal: formattedItems[0].metaDecenal,
+          macroobjetivoDecenal: formattedItems[0].macroobjetivoDecenal,
+          objetivoDecenal: formattedItems[0].objetivoDecenal
+        } : null,
+        campos_pdm: formattedItems[0] ? {
+          programaPDM: formattedItems[0].programaPDM,
+          subprogramaPDM: formattedItems[0].subprogramaPDM,
+          proyectoPDM: formattedItems[0].proyectoPDM
+        } : null
+      })
 
       setItems(formattedItems)
       return formattedItems
@@ -395,19 +465,19 @@ export function usePlanAccionService(areaSlug: string) {
         if (updatedItem.estado !== undefined) updateData.estado = updatedItem.estado
         if (updatedItem.prioridad !== undefined) updateData.prioridad = updatedItem.prioridad
         if (updatedItem.comentarios !== undefined) updateData.comentarios = updatedItem.comentarios
-        // Mapear campos del Plan Decenal de camelCase a snake_case
-        if (updatedItem.metaDecenal !== undefined) updateData.meta_docenal = updatedItem.metaDecenal
-        if (updatedItem.macroobjetivoDecenal !== undefined) updateData.macroobjetivo_docenal = updatedItem.macroobjetivoDecenal
-        if (updatedItem.objetivoDecenal !== undefined) updateData.objetivo_docenal = updatedItem.objetivoDecenal
-        // Mapear campos del PDM de camelCase a snake_case
-        if (updatedItem.programaPDM !== undefined) updateData.programa_pdm = updatedItem.programaPDM
-        if (updatedItem.subprogramaPDM !== undefined) updateData.subprograma_pdm = updatedItem.subprogramaPDM
-        if (updatedItem.proyectoPDM !== undefined) updateData.proyecto_pdm = updatedItem.proyectoPDM
-        // Mapear campos demográficos de camelCase a snake_case
-        if (updatedItem.grupoEtareo !== undefined) updateData.grupo_etareo = updatedItem.grupoEtareo
-        if (updatedItem.grupoPoblacion !== undefined) updateData.grupo_poblacion = updatedItem.grupoPoblacion
-        if (updatedItem.zona !== undefined) updateData.zona = updatedItem.zona
-        if (updatedItem.grupoEtnico !== undefined) updateData.grupo_etnico = updatedItem.grupoEtnico
+        // Mapear campos del Plan Decenal de camelCase a snake_case - usar null para limpiar
+        if (updatedItem.metaDecenal !== undefined) updateData.meta_docenal = updatedItem.metaDecenal || null
+        if (updatedItem.macroobjetivoDecenal !== undefined) updateData.macroobjetivo_docenal = updatedItem.macroobjetivoDecenal || null
+        if (updatedItem.objetivoDecenal !== undefined) updateData.objetivo_docenal = updatedItem.objetivoDecenal || null
+        // Mapear campos del PDM de camelCase a snake_case - usar null para limpiar
+        if (updatedItem.programaPDM !== undefined) updateData.programa_pdm = updatedItem.programaPDM || null
+        if (updatedItem.subprogramaPDM !== undefined) updateData.subprograma_pdm = updatedItem.subprogramaPDM || null
+        if (updatedItem.proyectoPDM !== undefined) updateData.proyecto_pdm = updatedItem.proyectoPDM || null
+        // Mapear campos demográficos de camelCase a snake_case - usar null para limpiar
+        if (updatedItem.grupoEtareo !== undefined) updateData.grupo_etareo = updatedItem.grupoEtareo || null
+        if (updatedItem.grupoPoblacion !== undefined) updateData.grupo_poblacion = updatedItem.grupoPoblacion || null
+        if (updatedItem.zona !== undefined) updateData.zona = updatedItem.zona || null
+        if (updatedItem.grupoEtnico !== undefined) updateData.grupo_etnico = updatedItem.grupoEtnico || null
         if (updatedItem.cantidad !== undefined) updateData.cantidad = updatedItem.cantidad ? Number(updatedItem.cantidad) : null
 
         // Actualizar en Supabase

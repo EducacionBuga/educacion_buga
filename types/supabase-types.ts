@@ -324,9 +324,9 @@ export interface Database {
           estado: string
           prioridad: string | null
           user_id: string | null
-          meta_decenal: string | null
-          macroobjetivo_decenal: string | null
-          objetivo_decenal: string | null
+          meta_docenal: string | null
+          macroobjetivo_docenal: string | null
+          objetivo_docenal: string | null
           programa_pdm: string | null
           subprograma_pdm: string | null
           proyecto_pdm: string | null
@@ -355,9 +355,9 @@ export interface Database {
           estado?: string
           prioridad?: string | null
           user_id?: string | null
-          meta_decenal?: string | null
-          macroobjetivo_decenal?: string | null
-          objetivo_decenal?: string | null
+          meta_docenal?: string | null
+          macroobjetivo_docenal?: string | null
+          objetivo_docenal?: string | null
           programa_pdm?: string | null
           subprograma_pdm?: string | null
           proyecto_pdm?: string | null
@@ -386,9 +386,9 @@ export interface Database {
           estado?: string
           prioridad?: string | null
           user_id?: string | null
-          meta_decenal?: string | null
-          macroobjetivo_decenal?: string | null
-          objetivo_decenal?: string | null
+          meta_docenal?: string | null
+          macroobjetivo_docenal?: string | null
+          objetivo_docenal?: string | null
           programa_pdm?: string | null
           subprograma_pdm?: string | null
           proyecto_pdm?: string | null

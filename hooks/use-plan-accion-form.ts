@@ -113,34 +113,75 @@ function formReducer(state: PlanAccionFormState, action: PlanAccionFormAction): 
       
       // Función auxiliar para parsear fechas en formato dd/MM/yyyy
       const parseDate = (dateString: string): Date | null => {
-        if (!dateString) return null
+        if (!dateString || dateString.trim() === "") return null
         
         try {
           // Si ya está en formato ISO, usar directamente
           if (dateString.includes('T')) {
-            return new Date(dateString)
+            const date = new Date(dateString)
+            return isNaN(date.getTime()) ? null : date
           }
           
           // Si está en formato dd/MM/yyyy, convertir
           const parts = dateString.split('/')
           if (parts.length === 3) {
             const [day, month, year] = parts.map(Number)
+            // Validar que los valores sean números válidos
+            if (isNaN(day) || isNaN(month) || isNaN(year)) return null
+            if (day < 1 || day > 31 || month < 1 || month > 12 || year < 1900) return null
+            
             const date = new Date(year, month - 1, day)
             return isNaN(date.getTime()) ? null : date
           }
           
-          return null
+          // Intentar parsear directamente como fecha
+          const directDate = new Date(dateString)
+          return isNaN(directDate.getTime()) ? null : directDate
         } catch (error) {
           console.error('Error parsing date:', dateString, error)
           return null
         }
       }
       
+      console.log(`🔄 SET_ITEM - Configurando item para edición:`, item)
+      console.log(`📅 Fechas originales - Inicio: ${item.fechaInicio}, Fin: ${item.fechaFin}`)
+      
+      const fechaInicioDate = parseDate(item.fechaInicio)
+      const fechaFinDate = parseDate(item.fechaFin)
+      
+      console.log(`📅 Fechas parseadas - Inicio:`, fechaInicioDate, `Fin:`, fechaFinDate)
+      
       return {
         ...state,
-        item: { ...item },
-        fechaInicioDate: parseDate(item.fechaInicio),
-        fechaFinDate: parseDate(item.fechaFin),
+        item: { 
+          ...item,
+          // Asegurar que todos los campos estén definidos
+          id: item.id || "",
+          programa: item.programa || "",
+          objetivo: item.objetivo || "",
+          meta: item.meta || "",
+          presupuesto: item.presupuesto || "",
+          acciones: item.acciones || "",
+          indicadores: item.indicadores || "",
+          porcentajeAvance: item.porcentajeAvance || 0,
+          fechaInicio: item.fechaInicio || "",
+          fechaFin: item.fechaFin || "",
+          estado: item.estado || PlanAccionEstado.PENDIENTE,
+          responsable: item.responsable || "",
+          metaDecenal: item.metaDecenal || "",
+          macroobjetivoDecenal: item.macroobjetivoDecenal || "",
+          objetivoDecenal: item.objetivoDecenal || "",
+          programaPDM: item.programaPDM || "",
+          subprogramaPDM: item.subprogramaPDM || "",
+          proyectoPDM: item.proyectoPDM || "",
+          grupoEtareo: item.grupoEtareo || "",
+          grupoPoblacion: item.grupoPoblacion || "",
+          zona: item.zona || "",
+          grupoEtnico: item.grupoEtnico || "",
+          cantidad: item.cantidad || "",
+        },
+        fechaInicioDate,
+        fechaFinDate,
         errors: {},
       }
     case "SET_ERRORS":

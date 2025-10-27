@@ -26,7 +26,8 @@ import {
   LayoutGrid,
   TableIcon,
   Edit,
-  Trash2
+  Trash2,
+  RefreshCw
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getColorClass } from "@/utils/areas"
@@ -75,7 +76,6 @@ export default function PlanAccionAreaMejorado({
   onItemsChange,
 }: PlanAccionAreaMejoradoProps) {
   // Estado local
-  const [planAccionItems, setPlanAccionItems] = useState<PlanAccionItem[]>(initialItems)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<"add" | "edit">("add")
   const [editingItem, setEditingItem] = useState<PlanAccionItem | null>(null)
@@ -88,6 +88,7 @@ export default function PlanAccionAreaMejorado({
 
   // Hooks personalizados
   const { 
+    items: planAccionItemsFromService, // 🔥 USAR items del servicio directamente
     isLoading, 
     error, 
     areaId, 
@@ -102,6 +103,22 @@ export default function PlanAccionAreaMejorado({
     retry
   } = usePlanAccionService(area)
   
+  // 🔥 USAR items del servicio que se actualizan automáticamente vía suscripción
+  const planAccionItems = planAccionItemsFromService
+  
+  // 🔍 DEBUG: Monitorear cambios en items
+  useEffect(() => {
+    console.log("🔄 planAccionItems actualizados:", {
+      count: planAccionItems.length,
+      items: planAccionItems.map(item => ({
+        id: item.id,
+        programa: item.programa,
+        metaDecenal: item.metaDecenal,
+        programaPDM: item.programaPDM
+      }))
+    })
+  }, [planAccionItems])
+  
   // Hook optimizado para estadísticas
   const { 
     stats: optimizedStats, 
@@ -109,27 +126,34 @@ export default function PlanAccionAreaMejorado({
     refresh: refreshStats 
   } = useOptimizedStats(areaId)
   
-  // Hook de paginación (solo se activa cuando hay muchos elementos)
-  const shouldUsePagination = planAccionItems.length > 50
-  const {
-    data: paginatedData,
-    pagination,
-    isLoading: paginationLoading,
-    goToPage,
-    setPageSize,
-    refresh: refreshPagination
-  } = usePagination<PlanAccionItem>(
-    'plan_accion',
-    { area_id: areaId },
-    {
-      initialPageSize: 20,
-      useCache: true,
-      prefetchAdjacent: true
-    }
-  )
+  // 🔥 PAGINACIÓN LOCAL (en lugar de queries separadas a BD)
+  const ITEMS_PER_PAGE = 20
+  const [currentPage, setCurrentPage] = useState(1)
   
-  // Usar datos paginados o todos los datos según el caso
-  const displayData = shouldUsePagination ? paginatedData : planAccionItems
+  // Calcular paginación local sobre datos ya transformados
+  const totalPages = Math.ceil(planAccionItems.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const endIndex = startIndex + ITEMS_PER_PAGE
+  const paginatedItems = planAccionItems.slice(startIndex, endIndex)
+  
+  // Usar datos paginados localmente (YA transformados a camelCase)
+  const displayData = paginatedItems
+  
+  // Funciones de paginación
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page)
+    }
+  }
+  
+  const pagination = {
+    currentPage,
+    pageSize: ITEMS_PER_PAGE,
+    totalItems: planAccionItems.length,
+    totalPages,
+    hasNextPage: currentPage < totalPages,
+    hasPreviousPage: currentPage > 1
+  }
 
   // Debug: monitorear estado del modal
   useEffect(() => {
@@ -151,8 +175,8 @@ export default function PlanAccionAreaMejorado({
 
   // Filtrar datos según los criterios
   const filteredData = useMemo(() => {
-    const dataToFilter = shouldUsePagination ? displayData : planAccionItems
-    return dataToFilter.filter((item) => {
+    // Siempre usar planAccionItems como fuente (ya transformados)
+    return planAccionItems.filter((item) => {
       // Filtro de búsqueda
       const matchesSearch =
         searchTerm === "" ||
@@ -165,7 +189,7 @@ export default function PlanAccionAreaMejorado({
 
       return matchesSearch && matchesEstado
     })
-  }, [planAccionItems, displayData, shouldUsePagination, searchTerm, estadoFilter])
+  }, [planAccionItems, searchTerm, estadoFilter])
 
   // Usar estadísticas optimizadas o calcular localmente como fallback
   const stats = useMemo(() => {
@@ -219,8 +243,9 @@ export default function PlanAccionAreaMejorado({
     const fetchData = async () => {
       try {
         dataFetchedRef.current = true
-        const items = await loadPlanesAccion()
-        setPlanAccionItems(items)
+        // 🔥 Ya no necesitamos setPlanAccionItems, los items vienen automáticamente del servicio
+        await loadPlanesAccion()
+        console.log("✅ Datos cargados desde usePlanAccionService")
       } catch (error) {
         console.error("Error al cargar datos:", error)
       }
@@ -241,14 +266,26 @@ export default function PlanAccionAreaMejorado({
   // Handlers
   const handleAddItem = useCallback(async (newItem: Omit<PlanAccionItem, "id">) => {
     try {
+      console.log("➕ AÑADIENDO NUEVO ITEM:", newItem.programa)
       const savedItem = await addPlanAccion(newItem as PlanAccionItem)
       if (savedItem) {
-        setPlanAccionItems(prev => [...prev, savedItem])
+        console.log("✅ ITEM AÑADIDO EXITOSAMENTE")
+        // 🔥 Ya no necesitamos setPlanAccionItems
+        // El servicio actualiza automáticamente los items vía suscripción
+        
+        // Cerrar el diálogo
+        setTimeout(() => {
+          setIsDialogOpen(false)
+          setDialogMode("add")
+        }, 100)
+        
         // Refrescar estadísticas optimizadas
         refreshStats()
+        
+        console.log("✅ UI SE ACTUALIZARÁ AUTOMÁTICAMENTE VÍA SUSCRIPCIÓN")
       }
     } catch (error) {
-      console.error("Error al añadir elemento:", error)
+      console.error("❌ Error al añadir elemento:", error)
     }
   }, [addPlanAccion, refreshStats])
 
@@ -271,32 +308,83 @@ export default function PlanAccionAreaMejorado({
 
   const handleUpdateItem = useCallback(async (updatedItem: PlanAccionItem) => {
     try {
+      console.log("🔄 ACTUALIZANDO ITEM:", updatedItem.programa, updatedItem.id)
       const result = await updatePlanAccion(updatedItem.id, updatedItem)
       if (result) {
-        setPlanAccionItems(prev => prev.map(item => 
-          item.id === updatedItem.id ? updatedItem : item
-        ))
-        setIsDialogOpen(false)
-        setEditingItem(null)
-        setDialogMode("add")
+        console.log("✅ ITEM ACTUALIZADO EXITOSAMENTE")
+        // 🔥 Ya no necesitamos setPlanAccionItems
+        // El servicio actualiza automáticamente los items vía suscripción
+        
+        // Cerrar el diálogo y limpiar estados
+        setTimeout(() => {
+          setIsDialogOpen(false)
+          setEditingItem(null)
+          setDialogMode("add")
+        }, 100)
+        
         // Refrescar estadísticas optimizadas
         refreshStats()
+        
+        console.log("✅ UI SE ACTUALIZARÁ AUTOMÁTICAMENTE VÍA SUSCRIPCIÓN")
       }
     } catch (error) {
-      console.error("Error al actualizar elemento:", error)
+      console.error("❌ Error al actualizar elemento:", error)
     }
   }, [updatePlanAccion, refreshStats])
 
   const handleDeleteItem = useCallback(async (id: string) => {
     try {
+      console.log("🗑️ ELIMINANDO ITEM:", id)
       await deletePlanAccion(id)
-      setPlanAccionItems(prev => prev.filter(item => item.id !== id))
+      console.log("✅ ITEM ELIMINADO EXITOSAMENTE")
+      
+      // 🔥 Ya no necesitamos setPlanAccionItems
+      // El servicio actualiza automáticamente los items vía suscripción
+      console.log("✅ UI SE ACTUALIZARÁ AUTOMÁTICAMENTE VÍA SUSCRIPCIÓN")
+      
       // Refrescar estadísticas optimizadas
       refreshStats()
+      
+      console.log("✅ UI ACTUALIZADA DESPUÉS DE ELIMINACIÓN")
     } catch (error) {
-      console.error("Error al eliminar elemento:", error)
+      console.error("❌ Error al eliminar elemento:", error)
     }
   }, [deletePlanAccion, refreshStats])
+
+  // Limpiar cache y recargar datos frescos
+  const handleClearCacheAndReload = useCallback(() => {
+    console.log('🧹 Limpiando TODOS los caches...')
+    
+    // Limpiar TODO el localStorage relacionado con queries y paginación
+    const keysToRemove: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && (
+        key.includes('_page_') || 
+        key.includes('pagination_') || 
+        key.includes('query_cache_') || 
+        key.includes('_paginated') ||
+        key.startsWith('v') ||
+        key.includes('plan_accion')
+      )) {
+        keysToRemove.push(key)
+      }
+    }
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key)
+      console.log(`  ❌ Eliminada: ${key}`)
+    })
+    console.log(`✅ Cache limpiado - ${keysToRemove.length} claves eliminadas`)
+    
+    // Actualizar versión de cache
+    const CACHE_VERSION = 3 // Incrementado para invalidar todo
+    localStorage.setItem('pagination_cache_version', String(CACHE_VERSION))
+    localStorage.setItem('query_cache_version', String(CACHE_VERSION))
+    
+    // Recargar la página para forzar carga fresca
+    console.log('🔄 Recargando página...')
+    window.location.reload()
+  }, [])
 
   const handleClearFilters = () => {
     setSearchTerm("")
@@ -413,6 +501,21 @@ export default function PlanAccionAreaMejorado({
   // Componente de tarjeta de plan mejorado
   const PlanCard = ({ item }: { item: PlanAccionItem }) => {
     const isExpanded = expandedRow === item.id
+    
+    // 🔍 DEBUG: Ver qué datos tiene el item
+    useEffect(() => {
+      console.log("📊 PlanCard - Item data:", {
+        id: item.id,
+        programa: item.programa,
+        metaDecenal: item.metaDecenal,
+        macroobjetivoDecenal: item.macroobjetivoDecenal,
+        objetivoDecenal: item.objetivoDecenal,
+        programaPDM: item.programaPDM,
+        subprogramaPDM: item.subprogramaPDM,
+        proyectoPDM: item.proyectoPDM,
+        allFields: item
+      })
+    }, [item])
 
     return (
       <Card className="mb-4 hover:shadow-lg transition-all duration-200 border-l-4 border-l-primary">
@@ -563,7 +666,13 @@ export default function PlanAccionAreaMejorado({
                             </div>
                             <div className="md:col-span-2">
                               <p className="text-xs font-medium text-teal-700 uppercase tracking-wide">Cantidad</p>
-                              <p className="text-sm text-teal-900 mt-1 font-medium">{item.cantidad ? (typeof item.cantidad === 'number' ? item.cantidad.toLocaleString() : item.cantidad) : "No especificada"}</p>
+                              <p className="text-sm text-teal-900 mt-1 font-medium">
+                                {item.cantidad 
+                                  ? (typeof item.cantidad === 'number' 
+                                      ? (item.cantidad as number).toLocaleString() 
+                                      : Number(item.cantidad).toLocaleString()) 
+                                  : "No especificada"}
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -795,6 +904,16 @@ export default function PlanAccionAreaMejorado({
           
           <div className="flex items-center gap-2">
             <Button
+              variant="outline"
+              onClick={handleClearCacheAndReload}
+              size="sm"
+              className="flex items-center gap-2 text-orange-600 border-orange-300 hover:bg-orange-50"
+              title="Limpiar caché y recargar datos frescos desde la base de datos"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Limpiar Caché
+            </Button>
+            <Button
               variant={viewMode === "cards" ? "default" : "outline"}
               onClick={() => setViewMode("cards")}
               size="sm"
@@ -1015,7 +1134,7 @@ export default function PlanAccionAreaMejorado({
                 setEditingItem(null)
                 setIsDialogOpen(true)
               }}
-              onExportClick={handleExportCSV}
+              onExportClick={handleExportExcel}
             />
 
             {/* Tabla de planes de acción */}
@@ -1068,8 +1187,8 @@ export default function PlanAccionAreaMejorado({
           </div>
         )}
 
-        {/* Controles de paginación (solo cuando hay muchos elementos) */}
-        {shouldUsePagination && (
+        {/* Controles de paginación (siempre mostrar si hay más de 1 página) */}
+        {totalPages > 1 && (
           <div className="mt-6">
             <PaginationControls
               pagination={{
@@ -1081,8 +1200,8 @@ export default function PlanAccionAreaMejorado({
                 hasPreviousPage: pagination.hasPreviousPage
               }}
               onPageChange={goToPage}
-              onPageSizeChange={setPageSize}
-              isLoading={paginationLoading}
+              onPageSizeChange={() => {}} // No soportado en paginación local simple
+              isLoading={isLoading}
               showItemInfo={true}
               showPageSizeSelector={true}
               showQuickNavigation={true}

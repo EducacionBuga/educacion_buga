@@ -7,6 +7,9 @@ import { queryPaginated } from '@/lib/optimized-queries'
 import { handleError } from '@/lib/error-handler'
 import { toast } from '@/hooks/use-toast'
 
+// 🔄 VERSIÓN DEL CACHE - Incrementa cuando cambies el esquema de BD
+const CACHE_VERSION = 3
+
 export interface PaginationState {
   currentPage: number
   pageSize: number
@@ -81,6 +84,27 @@ export function usePagination<T>(
   const [pageCache] = useState(new Map<string, { data: T[]; timestamp: number }>())
   const CACHE_TTL = 5 * 60 * 1000 // 5 minutos
 
+  // 🔄 Limpiar cache antiguo al montar el componente si la versión cambió
+  useEffect(() => {
+    const storedVersion = localStorage.getItem('pagination_cache_version')
+    if (storedVersion !== String(CACHE_VERSION)) {
+      console.log('🧹 Limpiando cache antiguo - versión actualizada de', storedVersion, 'a', CACHE_VERSION)
+      // Limpiar todas las claves de paginación en localStorage
+      const keysToRemove: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && (key.includes('_page_') || key.includes('pagination_'))) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key))
+      // Limpiar también el cache en memoria
+      pageCache.clear()
+      localStorage.setItem('pagination_cache_version', String(CACHE_VERSION))
+      console.log('✅ Cache limpiado -', keysToRemove.length, 'claves eliminadas del localStorage + cache en memoria')
+    }
+  }, [pageCache])
+
   // Calcular estado de paginación
   const pagination = useMemo<PaginationState>(() => {
     const totalPages = Math.ceil(totalItems / pageSize)
@@ -94,9 +118,9 @@ export function usePagination<T>(
     }
   }, [currentPage, pageSize, totalItems])
 
-  // Generar clave de cache
+  // Generar clave de cache con versión
   const getCacheKey = useCallback((page: number, size: number) => {
-    return `${table}_${page}_${size}_${JSON.stringify(queryOptions)}`
+    return `v${CACHE_VERSION}_${table}_${page}_${size}_${JSON.stringify(queryOptions)}`
   }, [table, queryOptions])
 
   // Obtener datos del cache

@@ -199,8 +199,11 @@ export function PlanAccionAddDialog({
     
     if (open && mode === "edit" && initialItem) {
       console.log("🔄 CONFIGURANDO FORMULARIO PARA EDICIÓN:", initialItem)
+      
+      // Primero configurar el item en el hook
       setItem(initialItem)
       
+      // Luego configurar los estados locales para los selectores
       // Configurar Plan Decenal si existe
       if (initialItem.metaDecenal && initialItem.metaDecenal.trim() !== "") {
         console.log("📝 Cargando Plan Decenal existente:", {
@@ -280,6 +283,19 @@ export function PlanAccionAddDialog({
     } else if (open && mode === "add") {
       console.log("🆕 RESETEANDO FORMULARIO PARA NUEVO ITEM")
       resetForm()
+      // Limpiar también los estados locales
+      setIncluirPlanDecenal(false)
+      setSelectedPlan("")
+      setSelectedMacroobjetivo("")
+      setSelectedObjetivo("")
+      setMacroobjetivos([])
+      setObjetivos([])
+      setIncluirPDM(false)
+      setSelectedProgramaPDM("")
+      setSelectedSubprogramaPDM("")
+      setSelectedProyectoPDM("")
+      setSubprogramasPDM([])
+      setProyectosPDM([])
     }
   }, [open, mode, initialItem, setItem, resetForm, planesDecenales])
 
@@ -386,21 +402,23 @@ export function PlanAccionAddDialog({
   // Resetear formulario al cerrar
   useEffect(() => {
     if (!open) {
-      resetForm()
-      setIncluirPlanDecenal(false)
-      setSelectedPlan("")
-      setSelectedMacroobjetivo("")
-      setSelectedObjetivo("")
-      setMacroobjetivos([])
-      setObjetivos([])
-      // Reset PDM states
-      setIncluirPDM(false)
-      setSelectedProgramaPDM("")
-      setSelectedSubprogramaPDM("")
-      setSelectedProyectoPDM("")
-      setSubprogramasPDM([])
-      setProyectosPDM([])
-      setHasBeenSubmitted(false)
+      // Solo limpiar si no estamos en modo edición o si el diálogo se cerró completamente
+      setTimeout(() => {
+        setIncluirPlanDecenal(false)
+        setSelectedPlan("")
+        setSelectedMacroobjetivo("")
+        setSelectedObjetivo("")
+        setMacroobjetivos([])
+        setObjetivos([])
+        setIncluirPDM(false)
+        setSelectedProgramaPDM("")
+        setSelectedSubprogramaPDM("")
+        setSelectedProyectoPDM("")
+        setSubprogramasPDM([])
+        setProyectosPDM([])
+        setHasBeenSubmitted(false)
+        resetForm()
+      }, 100)
     }
   }, [open, resetForm])
 

@@ -21,15 +21,15 @@ export interface PlanAccionItem {
   estado: string
   prioridad?: string
   comentarios?: string
-  // Campos del Plan Decenal
-  metaDecenal: string
-  macroobjetivoDecenal: string
-  objetivoDecenal: string
-  // Campos del Plan de Desarrollo Municipal (PDM)
-  programaPDM: string
-  subprogramaPDM: string
-  proyectoPDM: string
-  // Campos de Información Demográfica
+  // Campos del Plan Decenal (OPCIONALES)
+  metaDecenal?: string
+  macroobjetivoDecenal?: string
+  objetivoDecenal?: string
+  // Campos del Plan de Desarrollo Municipal - PDM 2024-2027 (OPCIONALES)
+  programaPDM?: string
+  subprogramaPDM?: string
+  proyectoPDM?: string
+  // Campos de Información Demográfica (OPCIONALES)
   grupoEtareo?: string
   grupoPoblacion?: string
   zona?: string

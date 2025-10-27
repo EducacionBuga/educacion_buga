@@ -76,7 +76,7 @@ export default function PlanAccionPage() {
         const area = areasData[0]
         setAreaName(area.nombre || AREA_SLUGS[slug] || "Área")
 
-        // 2. Obtener datos del plan de acción para el área
+        // 2. Obtener datos del plan de acción para el área - INCLUIR TODOS LOS CAMPOS
         const { data: planesData, error: planesError } = await supabase
           .from("plan_accion")
           .select(`
@@ -95,9 +95,17 @@ export default function PlanAccionPage() {
             estado,
             prioridad,
             comentarios,
-            meta_decenal,
-            macroobjetivo_decenal,
-            objetivo_decenal,
+            meta_docenal,
+            macroobjetivo_docenal,
+            objetivo_docenal,
+            programa_pdm,
+            subprograma_pdm,
+            proyecto_pdm,
+            grupo_etareo,
+            grupo_poblacion,
+            zona,
+            grupo_etnico,
+            cantidad,
             created_at,
             updated_at
           `)
@@ -129,13 +137,26 @@ export default function PlanAccionPage() {
           estado: plan.estado || "Pendiente",
           prioridad: plan.prioridad || "Media",
           descripcion: plan.comentarios || plan.acciones || "",
-          metaDecenal: plan.meta_decenal || "",
-          macroobjetivoDecenal: plan.macroobjetivo_decenal || "",
-          objetivoDecenal: plan.objetivo_decenal || "",
+          // Campos del Plan Decenal (corregido: docenal -> decenal)
+          metaDecenal: plan.meta_docenal || "",
+          macroobjetivoDecenal: plan.macroobjetivo_docenal || "",
+          objetivoDecenal: plan.objetivo_docenal || "",
+          // Campos del PDM 2024-2027
+          programaPDM: plan.programa_pdm || "",
+          subprogramaPDM: plan.subprograma_pdm || "",
+          proyectoPDM: plan.proyecto_pdm || "",
+          // Campos demográficos
+          grupoEtareo: plan.grupo_etareo || "",
+          grupoPoblacion: plan.grupo_poblacion || "",
+          zona: plan.zona || "",
+          grupoEtnico: plan.grupo_etnico || "",
+          cantidad: plan.cantidad !== null && plan.cantidad !== undefined ? Number(plan.cantidad) : undefined,
         }))
 
         setItems(transformedData)
         console.log(`Cargados ${transformedData.length} elementos del plan de acción para ${area.nombre}`)
+        console.log("🔍 Verificando campos Plan Decenal y PDM en datos cargados:")
+        console.log("Primer item:", transformedData[0])
       } catch (err: any) {
         console.error("Error inesperado:", err)
         setError(`Error inesperado: ${err.message}`)
@@ -146,6 +167,31 @@ export default function PlanAccionPage() {
 
     if (slug) {
       loadData()
+    }
+
+    // 🔄 SUSCRIPCIÓN EN TIEMPO REAL - Similar a matriz-seguimiento
+    // Configurar suscripción a cambios en tiempo real
+    const channel = supabase
+      .channel("plan_accion_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // Escuchar todos los eventos: INSERT, UPDATE, DELETE
+          schema: "public",
+          table: "plan_accion",
+        },
+        (payload) => {
+          console.log("🔄 Cambio detectado en plan_accion:", payload)
+          // Recargar datos cuando hay cambios
+          loadData()
+        }
+      )
+      .subscribe()
+
+    // Cleanup: cancelar suscripción cuando el componente se desmonte
+    return () => {
+      console.log("🧹 Limpiando suscripción a cambios de plan_accion")
+      supabase.removeChannel(channel)
     }
   }, [slug, supabase])
 
@@ -273,6 +319,9 @@ export default function PlanAccionPage() {
                   <TableHead>Plan Decenal</TableHead>
                   <TableHead>Macroobjetivo</TableHead>
                   <TableHead>Objetivo Decenal</TableHead>
+                  <TableHead>Programa PDM</TableHead>
+                  <TableHead>Subprograma PDM</TableHead>
+                  <TableHead>Proyecto PDM</TableHead>
                   <TableHead>Objetivo</TableHead>
                   <TableHead>Meta</TableHead>
                   <TableHead>Presupuesto</TableHead>
@@ -289,7 +338,7 @@ export default function PlanAccionPage() {
               <TableBody>
                 {filteredItems.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={18} className="text-center py-8 text-muted-foreground">
                       No hay actividades registradas para esta área
                     </TableCell>
                   </TableRow>
@@ -302,6 +351,9 @@ export default function PlanAccionPage() {
                         {item.macroobjetivoDecenal ? item.macroobjetivoDecenal.split("\n")[0] : "N/A"}
                       </TableCell>
                       <TableCell>{item.objetivoDecenal || "N/A"}</TableCell>
+                      <TableCell>{item.programaPDM || "N/A"}</TableCell>
+                      <TableCell>{item.subprogramaPDM || "N/A"}</TableCell>
+                      <TableCell>{item.proyectoPDM || "N/A"}</TableCell>
                       <TableCell>{item.objetivo}</TableCell>
                       <TableCell>{item.meta}</TableCell>
                       <TableCell>{item.presupuesto}</TableCell>

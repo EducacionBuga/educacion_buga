@@ -123,23 +123,10 @@ export function usePlanAccionStore(areaSlug: AreaId) {
         const { data: supabaseItems, error } = await supabase
           .from("plan_accion")
           .select(`
-            id, 
-            programa,
-            objetivo,
-            meta,
-            presupuesto,
-            acciones,
-            indicadores,
-            porcentaje_avance,
-            fecha_inicio,
-            fecha_fin,
-            responsable,
-            estado,
-            prioridad,
-            comentarios,
-            meta_decenal,
-            macroobjetivo_decenal,
-            objetivo_decenal,
+            *,
+            meta_docenal,
+            macroobjetivo_docenal,
+            objetivo_docenal,
             programa_pdm,
             subprograma_pdm,
             proyecto_pdm,
@@ -180,17 +167,20 @@ export function usePlanAccionStore(areaSlug: AreaId) {
             estado: item.estado || "Pendiente",
             prioridad: item.prioridad || "Media",
             comentarios: item.comentarios || "",
-            metaDecenal: item.meta_decenal || "",
-            macroobjetivoDecenal: item.macroobjetivo_decenal || "",
-            objetivoDecenal: item.objetivo_decenal || "",
-            programaPDM: item.programa_pdm || "",
-            subprogramaPDM: item.subprograma_pdm || "",
-            proyectoPDM: item.proyecto_pdm || "",
-            grupoEtareo: item.grupo_etareo || "",
-            grupoPoblacion: item.grupo_poblacion || "",
-            zona: item.zona || "",
-            grupoEtnico: item.grupo_etnico || "",
-            cantidad: item.cantidad !== null ? String(item.cantidad) : "",
+            // Mapeo Plan Decenal (docenal -> decenal)
+            metaDecenal: item.meta_docenal || undefined,
+            macroobjetivoDecenal: item.macroobjetivo_docenal || undefined,
+            objetivoDecenal: item.objetivo_docenal || undefined,
+            // Mapeo PDM 2024-2027
+            programaPDM: item.programa_pdm || undefined,
+            subprogramaPDM: item.subprograma_pdm || undefined,
+            proyectoPDM: item.proyecto_pdm || undefined,
+            // Mapeo campos demográficos
+            grupoEtareo: item.grupo_etareo || undefined,
+            grupoPoblacion: item.grupo_poblacion || undefined,
+            zona: item.zona || undefined,
+            grupoEtnico: item.grupo_etnico || undefined,
+            cantidad: item.cantidad !== null && item.cantidad !== undefined ? String(item.cantidad) : undefined,
           }))
           setItems(formattedItems)
         } else {
@@ -326,10 +316,10 @@ export function usePlanAccionStore(areaSlug: AreaId) {
         estado: newItem.estado || "Pendiente",
         prioridad: newItem.prioridad || "Media",
         comentarios: newItem.comentarios || "",
-        // CAMPOS DEL PLAN DECENAL - Asegurar que se incluyan correctamente
-        meta_decenal: newItem.metaDecenal,
-        macroobjetivo_decenal: newItem.macroobjetivoDecenal,
-        objetivo_decenal: newItem.objetivoDecenal,
+        // CAMPOS DEL PLAN DECENAL - Usar || null para campos opcionales
+        meta_docenal: newItem.metaDecenal || null,
+        macroobjetivo_docenal: newItem.macroobjetivoDecenal || null,
+        objetivo_docenal: newItem.objetivoDecenal || null,
         // CAMPOS DEL PDM 2024-2027
         programa_pdm: newItem.programaPDM || null,
         subprograma_pdm: newItem.subprogramaPDM || null,
@@ -346,21 +336,13 @@ export function usePlanAccionStore(areaSlug: AreaId) {
       console.log("📋 DATOS PREPARADOS PARA SUPABASE:")
       console.log("Objeto completo:", insertData)
       console.log("🎯 CAMPOS PLAN DECENAL EN OBJETO FINAL:")
-      console.log("meta_decenal:", insertData.meta_decenal)
-      console.log("macroobjetivo_decenal:", insertData.macroobjetivo_decenal)
-      console.log("objetivo_decenal:", insertData.objetivo_decenal)
-
-      // Verificar que los campos no estén vacíos antes de insertar
-      if (!insertData.meta_decenal || !insertData.macroobjetivo_decenal || !insertData.objetivo_decenal) {
-        console.warn("⚠️  Advertencia: Campos del Plan Decenal están vacíos!")
-        console.log("Valores actuales:", {
-          meta_decenal: insertData.meta_decenal,
-          macroobjetivo_decenal: insertData.macroobjetivo_decenal,
-          objetivo_decenal: insertData.objetivo_decenal,
-        })
-      }
-
-      console.log("✅ Campos del Plan Decenal validados (si están presentes)")
+      console.log("   meta_docenal:", insertData.meta_docenal)
+      console.log("   macroobjetivo_docenal:", insertData.macroobjetivo_docenal)
+      console.log("   objetivo_docenal:", insertData.objetivo_docenal)
+      console.log("🏛️ CAMPOS PDM 2024-2027 EN OBJETO FINAL:")
+      console.log("   programa_pdm:", insertData.programa_pdm)
+      console.log("   subprograma_pdm:", insertData.subprograma_pdm)
+      console.log("   proyecto_pdm:", insertData.proyecto_pdm)
 
       // Insertar en Supabase
       console.log("🚀 ENVIANDO A SUPABASE...")
@@ -381,9 +363,9 @@ export function usePlanAccionStore(areaSlug: AreaId) {
       if (data && data.length > 0) {
         console.log("✅ ITEM GUARDADO EXITOSAMENTE:", data[0])
         console.log("🎯 VERIFICANDO CAMPOS PLAN DECENAL GUARDADOS:")
-        console.log("meta_decenal guardado:", data[0].meta_decenal)
-        console.log("macroobjetivo_decenal guardado:", data[0].macroobjetivo_decenal)
-        console.log("objetivo_decenal guardado:", data[0].objetivo_decenal)
+        console.log("meta_docenal guardado:", data[0].meta_docenal)
+        console.log("macroobjetivo_docenal guardado:", data[0].macroobjetivo_docenal)
+        console.log("objetivo_docenal guardado:", data[0].objetivo_docenal)
       }
 
       toast({
@@ -433,20 +415,20 @@ export function usePlanAccionStore(areaSlug: AreaId) {
       if (updatedFields.estado !== undefined) supabaseData.estado = updatedFields.estado
       if (updatedFields.prioridad !== undefined) supabaseData.prioridad = updatedFields.prioridad
       if (updatedFields.comentarios !== undefined) supabaseData.comentarios = updatedFields.comentarios
-      // Asegurar que los campos del Plan Decenal se mapeen correctamente
-      if (updatedFields.metaDecenal !== undefined) supabaseData.meta_decenal = updatedFields.metaDecenal
+      // Asegurar que los campos del Plan Decenal se mapeen correctamente - usar null para limpiar
+      if (updatedFields.metaDecenal !== undefined) supabaseData.meta_docenal = updatedFields.metaDecenal || null
       if (updatedFields.macroobjetivoDecenal !== undefined)
-        supabaseData.macroobjetivo_decenal = updatedFields.macroobjetivoDecenal
-      if (updatedFields.objetivoDecenal !== undefined) supabaseData.objetivo_decenal = updatedFields.objetivoDecenal
-      // Campos del PDM 2024-2027
-      if (updatedFields.programaPDM !== undefined) supabaseData.programa_pdm = updatedFields.programaPDM
-      if (updatedFields.subprogramaPDM !== undefined) supabaseData.subprograma_pdm = updatedFields.subprogramaPDM
-      if (updatedFields.proyectoPDM !== undefined) supabaseData.proyecto_pdm = updatedFields.proyectoPDM
-      // Campos de información demográfica
-      if (updatedFields.grupoEtareo !== undefined) supabaseData.grupo_etareo = updatedFields.grupoEtareo
-      if (updatedFields.grupoPoblacion !== undefined) supabaseData.grupo_poblacion = updatedFields.grupoPoblacion
-      if (updatedFields.zona !== undefined) supabaseData.zona = updatedFields.zona
-      if (updatedFields.grupoEtnico !== undefined) supabaseData.grupo_etnico = updatedFields.grupoEtnico
+        supabaseData.macroobjetivo_docenal = updatedFields.macroobjetivoDecenal || null
+      if (updatedFields.objetivoDecenal !== undefined) supabaseData.objetivo_docenal = updatedFields.objetivoDecenal || null
+      // Campos del PDM 2024-2027 - usar null para limpiar
+      if (updatedFields.programaPDM !== undefined) supabaseData.programa_pdm = updatedFields.programaPDM || null
+      if (updatedFields.subprogramaPDM !== undefined) supabaseData.subprograma_pdm = updatedFields.subprogramaPDM || null
+      if (updatedFields.proyectoPDM !== undefined) supabaseData.proyecto_pdm = updatedFields.proyectoPDM || null
+      // Campos de información demográfica - usar null para limpiar
+      if (updatedFields.grupoEtareo !== undefined) supabaseData.grupo_etareo = updatedFields.grupoEtareo || null
+      if (updatedFields.grupoPoblacion !== undefined) supabaseData.grupo_poblacion = updatedFields.grupoPoblacion || null
+      if (updatedFields.zona !== undefined) supabaseData.zona = updatedFields.zona || null
+      if (updatedFields.grupoEtnico !== undefined) supabaseData.grupo_etnico = updatedFields.grupoEtnico || null
       if (updatedFields.cantidad !== undefined) supabaseData.cantidad = updatedFields.cantidad ? Number(updatedFields.cantidad) : null
 
       console.log("Datos a actualizar en Supabase:", supabaseData)
