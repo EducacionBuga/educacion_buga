@@ -126,63 +126,29 @@ export default function PlanAccionAreaMejorado({
     refresh: refreshStats 
   } = useOptimizedStats(areaId)
   
-  // 🔥 PAGINACIÓN LOCAL (en lugar de queries separadas a BD)
+  // Estado de paginación
   const ITEMS_PER_PAGE = 20
   const [currentPage, setCurrentPage] = useState(1)
-  
-  // Calcular paginación local sobre datos ya transformados
-  const totalPages = Math.ceil(planAccionItems.length / ITEMS_PER_PAGE)
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-  const endIndex = startIndex + ITEMS_PER_PAGE
-  const paginatedItems = planAccionItems.slice(startIndex, endIndex)
-  
-  // Usar datos paginados localmente (YA transformados a camelCase)
-  const displayData = paginatedItems
-  
-  // Funciones de paginación
-  const goToPage = (page: number) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page)
-    }
-  }
-  
-  const pagination = {
-    currentPage,
-    pageSize: ITEMS_PER_PAGE,
-    totalItems: planAccionItems.length,
-    totalPages,
-    hasNextPage: currentPage < totalPages,
-    hasPreviousPage: currentPage > 1
-  }
 
   // Debug: monitorear estado del modal
   useEffect(() => {
     console.log("📊 Estado modal:", { isDialogOpen, dialogMode, editingItem: editingItem?.id })
   }, [isDialogOpen, dialogMode, editingItem])
 
-  // Función de búsqueda para el hook de búsqueda debounced
-  const searchPredicate = useCallback((item: PlanAccionItem, term: string) => {
-    return (
-      item.programa.toLowerCase().includes(term) ||
-      item.objetivo.toLowerCase().includes(term) ||
-      item.meta.toLowerCase().includes(term) ||
-      (item.responsable?.toLowerCase() || "").includes(term)
-    )
-  }, [])
-
-  // Hook de búsqueda con debounce
-  const { searchTerm: debouncedSearchTerm, filteredItems, handleSearchChange } = useDebouncedSearch(planAccionItems, searchPredicate)
-
-  // Filtrar datos según los criterios
+  // 1️⃣ PRIMERO: Filtrar datos según los criterios de búsqueda y estado
   const filteredData = useMemo(() => {
-    // Siempre usar planAccionItems como fuente (ya transformados)
     return planAccionItems.filter((item) => {
-      // Filtro de búsqueda
+      // Filtro de búsqueda (ahora incluye más campos)
       const matchesSearch =
         searchTerm === "" ||
         (item.programa?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
         (item.objetivo?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
-        (item.responsable?.toLowerCase() || "").includes(searchTerm.toLowerCase())
+        (item.meta?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+        (item.responsable?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+        (item.acciones?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+        // Buscar también en campos de Plan Decenal y PDM
+        (item.metaDecenal?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+        (item.programaPDM?.toLowerCase() || "").includes(searchTerm.toLowerCase())
 
       // Filtro de estado
       const matchesEstado = estadoFilter === "todos" || item.estado === estadoFilter
@@ -190,6 +156,38 @@ export default function PlanAccionAreaMejorado({
       return matchesSearch && matchesEstado
     })
   }, [planAccionItems, searchTerm, estadoFilter])
+
+  // 2️⃣ SEGUNDO: Calcular paginación sobre datos FILTRADOS
+  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const endIndex = startIndex + ITEMS_PER_PAGE
+  const paginatedItems = filteredData.slice(startIndex, endIndex)
+  
+  // Datos a mostrar en la página actual
+  const displayData = paginatedItems
+  
+  // 3️⃣ TERCERO: Funciones de paginación
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page)
+      // Scroll suave al inicio de la tabla
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+  
+  const pagination = {
+    currentPage,
+    pageSize: ITEMS_PER_PAGE,
+    totalItems: filteredData.length, // Total de items FILTRADOS
+    totalPages,
+    hasNextPage: currentPage < totalPages,
+    hasPreviousPage: currentPage > 1
+  }
+
+  // 4️⃣ CUARTO: Resetear a página 1 cuando cambien los filtros
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, estadoFilter])
 
   // Usar estadísticas optimizadas o calcular localmente como fallback
   const stats = useMemo(() => {
@@ -1009,12 +1007,19 @@ export default function PlanAccionAreaMejorado({
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                       <Input
-                        placeholder="Buscar por programa, objetivo, responsable..."
+                        placeholder="Buscar por programa, objetivo, meta, responsable, Plan Decenal, PDM..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-10 h-11"
                       />
                     </div>
+                    {/* Indicador de resultados filtrados */}
+                    {(searchTerm || estadoFilter !== "todos") && (
+                      <p className="text-sm text-gray-600 mt-2">
+                        📊 Mostrando <span className="font-semibold text-blue-600">{filteredData.length}</span> de {planAccionItems.length} actividades
+                        {searchTerm && <span className="ml-1">con "{searchTerm}"</span>}
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <select
